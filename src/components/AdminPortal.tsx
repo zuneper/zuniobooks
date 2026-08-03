@@ -12,7 +12,7 @@ import {
   Sparkles,
   Layers,
 } from 'lucide-react';
-import { Book, User } from '../types';
+import { Book, Episode, User } from '../types';
 import { api } from '../lib/api';
 
 interface AdminPortalProps {
@@ -57,8 +57,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [selectedBookId, setSelectedBookId] = useState(preSelectedBookId || '');
   const [episodeTitle, setEpisodeTitle] = useState('');
   const [episodeTrackNumber, setEpisodeTrackNumber] = useState('');
+  const [episodeDurationInput, setEpisodeDurationInput] = useState('');
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [audioUrlInput, setAudioUrlInput] = useState('');
+
+  // Form State: Episode Management
+  const [editingBookId, setEditingBookId] = useState<string | null>(null);
+  const [editingEpisodes, setEditingEpisodes] = useState<Episode[]>([]);
 
   const fetchCatalog = async () => {
     try {
@@ -123,7 +128,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       const created = await api.createBook(formData);
       setStatusMessage({ type: 'success', msg: `Successfully created audiobook "${created.title}"!` });
 
-      // Reset form
       setBookTitle('');
       setBookAuthor('');
       setBookNarrator('');
@@ -134,7 +138,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       fetchCatalog();
       refreshBooks();
 
-      // Automatically switch to episode upload for this book
       setSelectedBookId(created.id);
       setActiveTab('upload_episode');
     } catch (err: any) {
@@ -163,6 +166,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       const formData = new FormData();
       if (episodeTitle) formData.append('title', episodeTitle);
       if (episodeTrackNumber) formData.append('trackNumber', episodeTrackNumber);
+      if (episodeDurationInput) formData.append('durationSeconds', episodeDurationInput);
 
       if (audioFile) {
         formData.append('audio', audioFile);
@@ -173,11 +177,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       const createdEp = await api.createEpisode(selectedBookId, formData);
       setStatusMessage({ type: 'success', msg: `Successfully uploaded episode "${createdEp.title}"!` });
 
-      // Reset episode form
       setEpisodeTitle('');
       setEpisodeTrackNumber('');
       setAudioFile(null);
       setAudioUrlInput('');
+      setEpisodeDurationInput('');
 
       fetchCatalog();
       refreshBooks();
@@ -198,6 +202,58 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     } catch (err: any) {
       setStatusMessage({ type: 'error', msg: err.message || 'Failed to delete book' });
     }
+  };
+
+  const handleManageEpisodes = async (bookId: string) => {
+    if (editingBookId === bookId) {
+      setEditingBookId(null);
+      return;
+    }
+    try {
+      setLoading(true);
+      const bookData = await api.getBook(bookId);
+      setEditingEpisodes(bookData.episodes || []);
+      setEditingBookId(bookId);
+    } catch (err: any) {
+      setStatusMessage({ type: 'error', msg: 'Failed to load episodes.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateDuration = async (epId: string, newDuration: number) => {
+    try {
+      setStatusMessage(null);
+      await api.updateEpisode(epId, { durationSeconds: newDuration });
+      setStatusMessage({ type: 'success', msg: 'Duration updated successfully!' });
+      setEditingEpisodes((prev) => prev.map(e => e.id === epId ? { ...e, durationSeconds: newDuration } : e));
+      refreshBooks();
+    } catch (err: any) {
+      setStatusMessage({ type: 'error', msg: err.message || 'Failed to update duration' });
+    }
+  };
+
+  const handleAutoFixDuration = (ep: Episode) => {
+    setStatusMessage({ type: 'success', msg: 'Detecting duration...' });
+    
+    const fullUrl = ep.audioUrl.startsWith('http') 
+      ? ep.audioUrl 
+      : `${window.location.origin}${ep.audioUrl}`;
+      
+    const audio = new Audio(fullUrl);
+    
+    audio.addEventListener('loadedmetadata', () => {
+      if (audio.duration && audio.duration !== Infinity && !isNaN(audio.duration)) {
+        const exactSecs = Math.round(audio.duration);
+        handleUpdateDuration(ep.id, exactSecs);
+      } else {
+        setStatusMessage({ type: 'error', msg: 'Browser could not auto-detect duration for this format. Please enter it manually.' });
+      }
+    });
+    
+    audio.addEventListener('error', () => {
+      setStatusMessage({ type: 'error', msg: 'Failed to load audio for detection.' });
+    });
   };
 
   return (
@@ -351,7 +407,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             />
           </div>
 
-          {/* Cover Art Image Upload */}
           <div className="space-y-2">
             <label className="block text-xs font-bold text-slate-300">Cover Art Image (Upload File or Enter Image URL)</label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -364,7 +419,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 />
                 <Upload className="w-6 h-6 text-cyan-400 mx-auto mb-1" />
                 <span className="text-xs font-semibold text-slate-200">
-                  {coverFile ? coverFile.name : 'Click to Upload Cover Image (.jpg, .png)'}
+                  {coverFile ? coverFile.name : 'Click to Upload Cover Image'}
                 </span>
               </div>
 
@@ -398,7 +453,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               <Music className="w-4 h-4 text-cyan-400" />
               <span>Upload Audio Chapter Segment</span>
             </h2>
-            <p className="text-xs text-slate-400">Select an existing audiobook and upload `.mp3`, `.m4a`, or `.wav` files.</p>
+            <p className="text-xs text-slate-400">Select an existing audiobook and upload any valid audio file format.</p>
           </div>
 
           {books.length === 0 ? (
@@ -420,31 +475,41 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </select>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-300 mb-1">Chapter Title</label>
                   <input
                     type="text"
                     value={episodeTitle}
                     onChange={(e) => setEpisodeTitle(e.target.value)}
-                    placeholder="e.g. Chapter 1: Arrival at Proxima"
+                    placeholder="e.g. Chapter 1"
                     className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">Track Sequence Number</label>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">Track Number</label>
                   <input
                     type="number"
                     value={episodeTrackNumber}
                     onChange={(e) => setEpisodeTrackNumber(e.target.value)}
-                    placeholder="Auto-calculated if blank"
+                    placeholder="Auto if blank"
+                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">Duration (Seconds)</label>
+                  <input
+                    type="number"
+                    value={episodeDurationInput}
+                    onChange={(e) => setEpisodeDurationInput(e.target.value)}
+                    placeholder="e.g. 568"
                     className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
                   />
                 </div>
               </div>
 
-              {/* Audio File Upload */}
               <div className="space-y-2">
                 <label className="block text-xs font-bold text-slate-300">Audio Chapter File *</label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -452,22 +517,49 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     <input
                       type="file"
                       accept="audio/*"
-                      onChange={(e) => setAudioFile(e.target.files?.[0] || null)}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        setAudioFile(file);
+                        if (file) {
+                          const objectUrl = URL.createObjectURL(file);
+                          const audio = new Audio(objectUrl);
+                          audio.addEventListener('loadedmetadata', () => {
+                            if (audio.duration && audio.duration !== Infinity && !isNaN(audio.duration)) {
+                              setEpisodeDurationInput(Math.round(audio.duration).toString());
+                            }
+                            URL.revokeObjectURL(objectUrl);
+                          });
+                        } else {
+                          setEpisodeDurationInput('');
+                        }
+                      }}
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     />
                     <Upload className="w-8 h-8 text-cyan-400 mx-auto mb-2" />
                     <span className="text-xs font-bold text-white block">
-                      {audioFile ? audioFile.name : 'Click to Upload Audio File (.mp3, .m4a, .wav)'}
+                      {audioFile ? audioFile.name : 'Click to Upload Audio File'}
                     </span>
-                    <span className="text-[10px] text-slate-400">Supports files up to 150MB</span>
                   </div>
 
                   <div>
                     <input
                       type="url"
                       value={audioUrlInput}
-                      onChange={(e) => setAudioUrlInput(e.target.value)}
-                      placeholder="Or paste direct MP3 audio stream URL..."
+                      onChange={(e) => {
+                        const url = e.target.value;
+                        setAudioUrlInput(url);
+                        if (url) {
+                          const audio = new Audio(url);
+                          audio.addEventListener('loadedmetadata', () => {
+                            if (audio.duration && audio.duration !== Infinity && !isNaN(audio.duration)) {
+                              setEpisodeDurationInput(Math.round(audio.duration).toString());
+                            }
+                          });
+                        } else {
+                          setEpisodeDurationInput('');
+                        }
+                      }}
+                      placeholder="Or paste direct audio stream URL..."
                       className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
                     />
                   </div>
@@ -501,38 +593,94 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               {books.map((b) => (
                 <div
                   key={b.id}
-                  className="flex items-center justify-between p-3.5 rounded-2xl bg-white/5 border border-white/5"
+                  className="flex flex-col p-3.5 rounded-2xl bg-white/5 border border-white/5"
                 >
-                  <div className="flex items-center gap-3">
-                    <img src={b.coverUrl} alt={b.title} className="w-12 h-12 rounded-lg object-cover" />
-                    <div>
-                      <h4 className="text-sm font-bold text-white">{b.title}</h4>
-                      <p className="text-xs text-slate-400">
-                        {b.author} • {b.episodesCount || 0} Chapters • {b.genre}
-                      </p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <img src={b.coverUrl} alt={b.title} className="w-12 h-12 rounded-lg object-cover" />
+                      <div>
+                        <h4 className="text-sm font-bold text-white">{b.title}</h4>
+                        <p className="text-xs text-slate-400">
+                          {b.author} • {b.episodesCount || 0} Chapters • {b.genre}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleManageEpisodes(b.id)}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-950/60 text-indigo-300 border border-indigo-500/30 text-xs font-semibold hover:bg-indigo-900/60 transition-colors"
+                      >
+                        <Layers className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Chapters</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setSelectedBookId(b.id);
+                          setActiveTab('upload_episode');
+                        }}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-cyan-950/60 text-cyan-300 border border-cyan-500/30 text-xs font-semibold hover:bg-cyan-900/60 transition-colors"
+                      >
+                        <PlusCircle className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Add</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleDeleteBook(b.id)}
+                        className="p-2 text-slate-400 hover:text-rose-400 transition-colors"
+                        title="Delete Audiobook"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => {
-                        setSelectedBookId(b.id);
-                        setActiveTab('upload_episode');
-                      }}
-                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-cyan-950/60 text-cyan-300 border border-cyan-500/30 text-xs font-semibold"
-                    >
-                      <PlusCircle className="w-3.5 h-3.5" />
-                      <span>Add Chapter</span>
-                    </button>
-
-                    <button
-                      onClick={() => handleDeleteBook(b.id)}
-                      className="p-2 text-slate-400 hover:text-rose-400 transition-colors"
-                      title="Delete Audiobook"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+                  {/* Chapters Dropdown / Editor */}
+                  {editingBookId === b.id && (
+                    <div className="mt-4 pt-4 border-t border-white/10 space-y-2">
+                      <h5 className="text-xs font-bold text-white mb-2">Edit Chapters for {b.title}</h5>
+                      
+                      {editingEpisodes.length === 0 ? (
+                        <p className="text-xs text-slate-500">No chapters found for this audiobook.</p>
+                      ) : (
+                        editingEpisodes.map((ep) => (
+                          <div key={ep.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded-xl bg-black/20 border border-white/5">
+                            <div className="flex-1 min-w-0 pr-4">
+                              <p className="text-xs font-bold text-slate-200 truncate">{ep.title}</p>
+                              <p className="text-[10px] text-slate-500 font-mono mt-0.5">
+                                Current Duration: {Math.floor(ep.durationSeconds / 60)}m {Math.floor(ep.durationSeconds % 60)}s ({ep.durationSeconds}s)
+                              </p>
+                            </div>
+                            
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <div className="flex items-center gap-2">
+                                <label className="text-[10px] text-slate-400">Secs:</label>
+                                <input 
+                                  type="number" 
+                                  defaultValue={ep.durationSeconds}
+                                  onBlur={(e) => {
+                                    const val = parseInt(e.target.value, 10);
+                                    if (!isNaN(val) && val !== ep.durationSeconds) {
+                                      handleUpdateDuration(ep.id, val);
+                                    }
+                                  }}
+                                  className="w-16 px-2 py-1 bg-white/10 border border-white/20 rounded-md text-xs text-white text-center focus:outline-none focus:border-cyan-400"
+                                  title="Enter duration in seconds and click off to save"
+                                />
+                              </div>
+                              <button
+                                onClick={() => handleAutoFixDuration(ep)}
+                                className="w-auto px-3 py-1.5 rounded-md bg-purple-600/30 text-purple-300 hover:bg-purple-600/50 border border-purple-500/30 text-[10px] font-bold transition-colors whitespace-nowrap"
+                              >
+                                Auto-Fix
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
