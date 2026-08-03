@@ -12,9 +12,7 @@ import { BookDetailView } from './components/BookDetailView';
 import { LibraryView } from './components/LibraryView';
 import { AdminPortal } from './components/AdminPortal';
 import { AuthModal } from './components/AuthModal';
-import { GuestAuthView } from './components/GuestAuthView';
 
-// Smooth, premium easing curve for page transitions
 const pageVariants = {
   initial: { opacity: 0, y: 15, scale: 0.98 },
   animate: { opacity: 1, y: 0, scale: 1 },
@@ -31,17 +29,12 @@ export function AppContent() {
   const [books, setBooks] = useState<Book[]>([]);
   const [loadingBooks, setLoadingBooks] = useState<boolean>(true);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
-  
-  // Mobile menu state
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
 
   useEffect(() => {
-    api
-      .getMe()
+    api.getMe()
       .then((u) => setUser(u))
-      .catch(() => {
-        api.logout();
-      });
+      .catch(() => api.logout());
   }, []);
 
   const refreshBooks = async () => {
@@ -87,7 +80,8 @@ export function AppContent() {
   };
 
   return (
-    <div className="relative min-h-screen text-slate-100 flex flex-col font-sans selection:bg-[#1ed760] selection:text-black overflow-x-hidden bg-[#121212]">
+    // Updated selection color to Premium Yellow (#facc15)
+    <div className="relative min-h-screen text-slate-100 flex flex-col font-sans selection:bg-[#facc15] selection:text-black overflow-x-hidden bg-[#121212]">
       <GalaxyBackground />
 
       <div className="relative z-10 flex flex-col min-h-screen">
@@ -106,133 +100,74 @@ export function AppContent() {
           onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         />
 
-        {!user ? (
-          <GuestAuthView
-            onSuccess={(loggedUser) => {
-              setUser(loggedUser);
-              refreshBooks();
+        {/* The main layout now renders for EVERYONE, not just logged-in users */}
+        <div className="flex-1 flex max-w-[1600px] w-full mx-auto relative">
+          <Sidebar
+            activeView={activeView}
+            setActiveView={(view) => {
+              setActiveView(view);
+              if (view !== 'detail') setSelectedBookId(null);
             }}
+            user={user}
+            isOpen={isMobileMenuOpen}
+            onClose={() => setIsMobileMenuOpen(false)}
           />
-        ) : (
-          <div className="flex-1 flex max-w-[1600px] w-full mx-auto relative">
-            <Sidebar
-              activeView={activeView}
-              setActiveView={(view) => {
-                setActiveView(view);
-                if (view !== 'detail') setSelectedBookId(null);
-              }}
-              user={user}
-              isOpen={isMobileMenuOpen}
-              onClose={() => setIsMobileMenuOpen(false)}
-            />
 
-            {/* The main-scroll-container ID is required here for the sticky header transition */}
-            <main id="main-scroll-container" className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0 overflow-y-auto overflow-x-hidden">
-              <AnimatePresence mode="wait">
-                {activeView === 'explore' && (
-                  <motion.div
-                    key="explore"
-                    initial="initial"
-                    animate="animate"
-                    exit="exit"
-                    variants={pageVariants}
-                    transition={pageTransition}
-                    className="min-h-full"
-                  >
-                    <ExploreView
-                      books={books}
-                      searchQuery={searchQuery}
-                      onClearSearch={() => setSearchQuery('')}
-                      onSelectBook={handleSelectBook}
-                      user={user}
-                      onOpenAuth={() => setIsAuthModalOpen(true)}
-                      onNavigateAdmin={() => setActiveView('admin')}
-                      refreshBooks={refreshBooks}
-                    />
-                  </motion.div>
-                )}
+          <main id="main-scroll-container" className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0 overflow-y-auto overflow-x-hidden">
+            <AnimatePresence mode="wait">
+              {activeView === 'explore' && (
+                <motion.div key="explore" initial="initial" animate="animate" exit="exit" variants={pageVariants} transition={pageTransition} className="min-h-full">
+                  <ExploreView
+                    books={books}
+                    searchQuery={searchQuery}
+                    onClearSearch={() => setSearchQuery('')}
+                    onSelectBook={handleSelectBook}
+                    user={user}
+                    onOpenAuth={() => setIsAuthModalOpen(true)}
+                    onNavigateAdmin={() => setActiveView('admin')}
+                    refreshBooks={refreshBooks}
+                  />
+                </motion.div>
+              )}
 
-                {activeView === 'detail' && selectedBookId && (
-                  <motion.div
-                    key="detail"
-                    initial="initial"
-                    animate="animate"
-                    exit="exit"
-                    variants={pageVariants}
-                    transition={pageTransition}
-                    className="min-h-full"
-                  >
-                    <BookDetailView
-                      bookId={selectedBookId}
-                      onBack={() => setActiveView('explore')}
-                      user={user}
-                      onOpenAuth={() => setIsAuthModalOpen(true)}
-                      onNavigateAdminUploadEpisode={handleNavigateAdminUploadEpisode}
-                      refreshBooks={refreshBooks}
-                    />
-                  </motion.div>
-                )}
+              {activeView === 'detail' && selectedBookId && (
+                <motion.div key="detail" initial="initial" animate="animate" exit="exit" variants={pageVariants} transition={pageTransition} className="min-h-full">
+                  <BookDetailView
+                    bookId={selectedBookId}
+                    onBack={() => setActiveView('explore')}
+                    user={user}
+                    onOpenAuth={() => setIsAuthModalOpen(true)}
+                    onNavigateAdminUploadEpisode={handleNavigateAdminUploadEpisode}
+                    refreshBooks={refreshBooks}
+                  />
+                </motion.div>
+              )}
 
-                {activeView === 'library' && (
-                  <motion.div
-                    key="library"
-                    initial="initial"
-                    animate="animate"
-                    exit="exit"
-                    variants={pageVariants}
-                    transition={pageTransition}
-                    className="min-h-full"
-                  >
-                    <LibraryView
-                      onSelectBook={handleSelectBook}
-                      user={user}
-                      onOpenAuth={() => setIsAuthModalOpen(true)}
-                    />
-                  </motion.div>
-                )}
+              {activeView === 'library' && (
+                <motion.div key="library" initial="initial" animate="animate" exit="exit" variants={pageVariants} transition={pageTransition} className="min-h-full">
+                  <LibraryView onSelectBook={handleSelectBook} user={user} onOpenAuth={() => setIsAuthModalOpen(true)} />
+                </motion.div>
+              )}
 
-                {activeView === 'favorites' && (
-                  <motion.div
-                    key="favorites"
-                    initial="initial"
-                    animate="animate"
-                    exit="exit"
-                    variants={pageVariants}
-                    transition={pageTransition}
-                    className="min-h-full"
-                  >
-                    <LibraryView
-                      onSelectBook={handleSelectBook}
-                      user={user}
-                      onOpenAuth={() => setIsAuthModalOpen(true)}
-                    />
-                  </motion.div>
-                )}
+              {activeView === 'favorites' && (
+                <motion.div key="favorites" initial="initial" animate="animate" exit="exit" variants={pageVariants} transition={pageTransition} className="min-h-full">
+                  <LibraryView onSelectBook={handleSelectBook} user={user} onOpenAuth={() => setIsAuthModalOpen(true)} />
+                </motion.div>
+              )}
 
-                {activeView === 'admin' && (
-                  <motion.div
-                    key="admin"
-                    initial="initial"
-                    animate="animate"
-                    exit="exit"
-                    variants={pageVariants}
-                    transition={pageTransition}
-                    className="min-h-full"
-                  >
-                    <AdminPortal
-                      user={user}
-                      refreshBooks={refreshBooks}
-                      preSelectedBookId={preSelectedAdminBookId}
-                    />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </main>
-          </div>
-        )}
+              {activeView === 'admin' && (
+                <motion.div key="admin" initial="initial" animate="animate" exit="exit" variants={pageVariants} transition={pageTransition} className="min-h-full">
+                  <AdminPortal user={user} refreshBooks={refreshBooks} preSelectedBookId={preSelectedAdminBookId} />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </main>
+        </div>
 
+        {/* Audio Player only shows if the user is authenticated */}
         {user && <AudioPlayerBar />}
 
+        {/* Global Auth Modal triggered by Header button */}
         <AuthModal
           isOpen={isAuthModalOpen}
           onClose={() => setIsAuthModalOpen(false)}
