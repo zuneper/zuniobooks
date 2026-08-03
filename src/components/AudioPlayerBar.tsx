@@ -48,31 +48,40 @@ export const AudioPlayerBar: React.FC = () => {
 
   const [isDragging, setIsDragging] = useState(false);
   const [dragProgress, setDragProgress] = useState(0);
-  
-  // Mobile Player State
   const [isMobileExpanded, setIsMobileExpanded] = useState(false);
-
-  // New Feature States
   const [isFavorite, setIsFavorite] = useState(false);
   const [sleepTimer, setSleepTimer] = useState<number | null>(null);
+  
+  // Menu Visibility
   const [showSleepMenu, setShowSleepMenu] = useState(false);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
 
   const progressBarRef = useRef<HTMLDivElement>(null);
   const mobileProgressBarRef = useRef<HTMLDivElement>(null);
   const volumeBarRef = useRef<HTMLDivElement>(null);
-  const speedMenuRef = useRef<HTMLDivElement>(null);
-  const sleepMenuRef = useRef<HTMLDivElement>(null);
+  
+  // Separate refs to prevent collision between Desktop and Mobile DOM nodes
+  const desktopSpeedRef = useRef<HTMLDivElement>(null);
+  const mobileSpeedRef = useRef<HTMLDivElement>(null);
+  const desktopSleepRef = useRef<HTMLDivElement>(null);
+  const mobileSleepRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setIsFavorite(currentBook?.isFavorite || false);
   }, [currentBook]);
 
+  // Safely check clicks outside the menus across both desktop and mobile views
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (speedMenuRef.current && !speedMenuRef.current.contains(e.target as Node)) setShowSpeedMenu(false);
-      if (sleepMenuRef.current && !sleepMenuRef.current.contains(e.target as Node)) setShowSleepMenu(false);
+      const target = e.target as Node;
+      
+      const clickedSpeed = desktopSpeedRef.current?.contains(target) || mobileSpeedRef.current?.contains(target);
+      if (!clickedSpeed) setShowSpeedMenu(false);
+
+      const clickedSleep = desktopSleepRef.current?.contains(target) || mobileSleepRef.current?.contains(target);
+      if (!clickedSleep) setShowSleepMenu(false);
     };
+
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
@@ -138,9 +147,9 @@ export const AudioPlayerBar: React.FC = () => {
   const VolumeIcon = volume === 0 ? VolumeX : volume < 0.5 ? Volume1 : Volume2;
   const currentVol = volume ?? 1;
 
-  // Render Speed Menu
-  const SpeedMenu = () => (
-    <div className="relative flex items-center" ref={speedMenuRef}>
+  // Render Helpers (These return safe React elements instead of causing component remounts)
+  const renderSpeedMenu = (ref: React.RefObject<HTMLDivElement>) => (
+    <div className="relative flex items-center" ref={ref}>
       <button
         onClick={() => { setShowSpeedMenu(!showSpeedMenu); setShowSleepMenu(false); }}
         className={`text-[12px] font-bold px-2 py-1 rounded-md border ${playbackRate !== 1 ? 'border-[#1ed760] text-[#1ed760]' : 'border-[#b3b3b3] text-[#b3b3b3] hover:text-white hover:border-white'} transition-colors`}
@@ -168,9 +177,8 @@ export const AudioPlayerBar: React.FC = () => {
     </div>
   );
 
-  // Render Sleep Menu
-  const SleepMenu = () => (
-    <div className="relative flex items-center" ref={sleepMenuRef}>
+  const renderSleepMenu = (ref: React.RefObject<HTMLDivElement>) => (
+    <div className="relative flex items-center" ref={ref}>
       <button
         onClick={() => { setShowSleepMenu(!showSleepMenu); setShowSpeedMenu(false); }}
         className={`flex items-center gap-1.5 transition-colors ${sleepTimer ? 'text-[#1ed760]' : 'text-[#b3b3b3] hover:text-white'}`}
@@ -208,17 +216,13 @@ export const AudioPlayerBar: React.FC = () => {
 
   return (
     <>
-      {/* ======================================= */}
-      {/* DESKTOP PLAYER (Hidden on Mobile)       */}
-      {/* ======================================= */}
+      {/* DESKTOP PLAYER */}
       <motion.div 
-        initial={{ y: 100, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
+        initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
         className="hidden md:flex fixed bottom-0 inset-x-0 z-50 bg-[#181818] border-t border-[#282828] h-[90px] items-center select-none"
       >
         <div className="flex items-center justify-between w-full px-6 max-w-[1600px] mx-auto h-full">
-          
-          {/* Desktop Left: Track Info */}
+          {/* Desktop Left */}
           <div className="flex items-center gap-3.5 w-[30%] min-w-[180px] pr-4">
             <img src={currentBook.coverUrl} alt="Cover" className="w-14 h-14 rounded-md object-cover shadow-md bg-[#282828] flex-shrink-0" />
             <div className="flex flex-col min-w-0 w-full overflow-hidden justify-center">
@@ -233,21 +237,17 @@ export const AudioPlayerBar: React.FC = () => {
             </button>
           </div>
 
-          {/* Desktop Center: Playback Controls */}
+          {/* Desktop Center */}
           <div className="flex flex-col items-center justify-center w-[40%] max-w-[722px]">
             <div className="flex items-center gap-6 mb-2">
-              <button onClick={skipBackward15} className="text-[#b3b3b3] hover:text-white active:scale-95" title="Rewind 15s"><RotateCcw className="w-4 h-4" /></button>
+              <button onClick={skipBackward15} className="text-[#b3b3b3] hover:text-white active:scale-95"><RotateCcw className="w-4 h-4" /></button>
               <button className="text-[#4d4d4d] cursor-not-allowed"><SkipBack className="w-5 h-5 fill-current" /></button>
-              <button 
-                onClick={togglePlayPause}
-                className="w-8 h-8 flex items-center justify-center rounded-full bg-white text-black hover:scale-105 transition-transform active:scale-95 flex-shrink-0"
-              >
+              <button onClick={togglePlayPause} className="w-8 h-8 flex items-center justify-center rounded-full bg-white text-black hover:scale-105 transition-transform active:scale-95 flex-shrink-0">
                 {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current translate-x-[1px]" />}
               </button>
               <button className="text-[#4d4d4d] cursor-not-allowed"><SkipForward className="w-5 h-5 fill-current" /></button>
-              <button onClick={skipForward15} className="text-[#b3b3b3] hover:text-white active:scale-95" title="Fast Forward 15s"><RotateCw className="w-4 h-4" /></button>
+              <button onClick={skipForward15} className="text-[#b3b3b3] hover:text-white active:scale-95"><RotateCw className="w-4 h-4" /></button>
             </div>
-            
             <div className="flex items-center gap-2 w-full max-w-[600px]">
               <span className="text-[11px] text-[#a7a7a7] font-mono min-w-[40px] text-right">{formatTime(dragProgress)}</span>
               <div 
@@ -267,10 +267,10 @@ export const AudioPlayerBar: React.FC = () => {
             </div>
           </div>
 
-          {/* Desktop Right: Extra Controls */}
+          {/* Desktop Right */}
           <div className="flex items-center justify-end w-[30%] min-w-[180px] gap-4">
-            <SpeedMenu />
-            <SleepMenu />
+            {renderSpeedMenu(desktopSpeedRef)}
+            {renderSleepMenu(desktopSleepRef)}
             <div className="flex items-center gap-2 w-[93px] group">
               <button onClick={() => setVolume(currentVol === 0 ? 1 : 0)} className="text-[#b3b3b3] hover:text-white transition-colors">
                 <VolumeIcon className="w-[18px] h-[18px]" />
@@ -283,17 +283,13 @@ export const AudioPlayerBar: React.FC = () => {
               </div>
             </div>
           </div>
-
         </div>
       </motion.div>
 
-      {/* ======================================= */}
-      {/* MOBILE MINI PLAYER (Visible on phones)  */}
-      {/* ======================================= */}
+      {/* MOBILE MINI PLAYER */}
       {!isMobileExpanded && (
         <motion.div 
-          initial={{ y: 100 }}
-          animate={{ y: 0 }}
+          initial={{ y: 100 }} animate={{ y: 0 }}
           className="md:hidden fixed bottom-14 sm:bottom-0 inset-x-2 sm:inset-x-0 z-50 rounded-lg sm:rounded-none bg-[#2a2a2a] overflow-hidden cursor-pointer shadow-lg"
           onClick={() => setIsMobileExpanded(true)}
         >
@@ -305,59 +301,41 @@ export const AudioPlayerBar: React.FC = () => {
                 <span className="text-[12px] text-[#b3b3b3] truncate">{currentEpisode.title}</span>
               </div>
             </div>
-            
             <div className="flex items-center gap-3 pl-3">
-              <button 
-                onClick={(e) => { e.stopPropagation(); handleToggleFavorite(); }}
-                className={`${isFavorite ? 'text-[#1ed760]' : 'text-white'} p-2`}
-              >
+              <button onClick={(e) => { e.stopPropagation(); handleToggleFavorite(); }} className={`${isFavorite ? 'text-[#1ed760]' : 'text-white'} p-2`}>
                 <Heart className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
               </button>
-              <button 
-                onClick={(e) => { e.stopPropagation(); togglePlayPause(); }}
-                className="p-2 text-white"
-              >
+              <button onClick={(e) => { e.stopPropagation(); togglePlayPause(); }} className="p-2 text-white">
                 {isPlaying ? <Pause className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current" />}
               </button>
             </div>
           </div>
-          {/* Bottom thin progress line */}
           <div className="absolute bottom-0 left-0 h-[2px] bg-white/20 w-full">
             <div className="h-full bg-white rounded-r-full" style={{ width: `${(progress / (duration || 1)) * 100}%` }} />
           </div>
         </motion.div>
       )}
 
-      {/* ======================================= */}
-      {/* MOBILE FULLSCREEN PLAYER                */}
-      {/* ======================================= */}
+      {/* MOBILE FULLSCREEN PLAYER */}
       <AnimatePresence>
         {isMobileExpanded && (
           <motion.div
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            transition={{ type: 'spring', damping: 26, stiffness: 220 }}
+            initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 26, stiffness: 220 }}
             className="md:hidden fixed inset-0 z-[100] bg-gradient-to-b from-[#2a2a2a] to-[#121212] flex flex-col p-6 text-white"
           >
-            {/* Header */}
             <div className="flex items-center justify-between mb-8 mt-2">
-              <button onClick={() => setIsMobileExpanded(false)} className="p-2 text-white hover:text-gray-300">
-                <ChevronDown className="w-7 h-7" />
-              </button>
+              <button onClick={() => setIsMobileExpanded(false)} className="p-2 text-white hover:text-gray-300"><ChevronDown className="w-7 h-7" /></button>
               <div className="flex flex-col items-center">
                 <span className="text-[10px] tracking-widest uppercase font-bold text-[#b3b3b3]">Now Playing</span>
                 <span className="text-xs font-bold mt-0.5 truncate max-w-[200px]">{currentBook.title}</span>
               </div>
-              <div className="w-11" /> {/* Spacer */}
+              <div className="w-11" />
             </div>
 
-            {/* Massive Cover Art */}
             <div className="flex-1 min-h-0 flex items-center justify-center mb-8">
               <img src={currentBook.coverUrl} alt="Cover" className="w-full max-w-[320px] aspect-square rounded-lg shadow-2xl object-cover" />
             </div>
 
-            {/* Info & Favorite */}
             <div className="flex items-center justify-between mb-6">
               <div className="flex flex-col min-w-0 flex-1 pr-4">
                 <SmartMarquee text={currentBook.title} className="text-xl font-bold leading-relaxed mb-1" threshold={20} />
@@ -368,7 +346,6 @@ export const AudioPlayerBar: React.FC = () => {
               </button>
             </div>
 
-            {/* Mobile Progress Bar */}
             <div className="mb-8 w-full">
               <div 
                 className="relative flex items-center h-6 cursor-pointer group"
@@ -388,26 +365,20 @@ export const AudioPlayerBar: React.FC = () => {
               </div>
             </div>
 
-            {/* Mobile Big Controls */}
             <div className="flex items-center justify-between px-4 mb-8">
               <button onClick={skipBackward15} className="text-white active:scale-90 transition-transform"><RotateCcw className="w-8 h-8" /></button>
               <button className="text-white/30 cursor-not-allowed"><SkipBack className="w-8 h-8 fill-current" /></button>
-              <button 
-                onClick={togglePlayPause}
-                className="w-[72px] h-[72px] flex items-center justify-center rounded-full bg-white text-black active:scale-95 transition-transform shadow-lg"
-              >
+              <button onClick={togglePlayPause} className="w-[72px] h-[72px] flex items-center justify-center rounded-full bg-white text-black active:scale-95 transition-transform shadow-lg">
                 {isPlaying ? <Pause className="w-8 h-8 fill-current" /> : <Play className="w-8 h-8 fill-current translate-x-1" />}
               </button>
               <button className="text-white/30 cursor-not-allowed"><SkipForward className="w-8 h-8 fill-current" /></button>
               <button onClick={skipForward15} className="text-white active:scale-90 transition-transform"><RotateCw className="w-8 h-8" /></button>
             </div>
 
-            {/* Mobile Footer Features */}
             <div className="flex items-center justify-between pb-6">
-              <SpeedMenu />
-              <SleepMenu />
+              {renderSpeedMenu(mobileSpeedRef)}
+              {renderSleepMenu(mobileSleepRef)}
             </div>
-
           </motion.div>
         )}
       </AnimatePresence>
