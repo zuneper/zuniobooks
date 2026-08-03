@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useRef, useEffect } from 'react';
+import React, { createContext, useContext, useState, useRef, useEffect, useCallback } from 'react';
 import { Book, Episode } from '../types';
 import { api } from '../lib/api';
 
@@ -31,25 +31,59 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lastSavedProgress = useRef<number>(0);
 
+  // Initialize the audio element once
   useEffect(() => {
     audioRef.current = new Audio();
     const audio = audioRef.current;
 
     const updateTime = () => setProgress(audio.currentTime);
     const updateDuration = () => setDuration(audio.duration);
-    const handleEnded = () => setIsPlaying(false);
 
     audio.addEventListener('timeupdate', updateTime);
     audio.addEventListener('loadedmetadata', updateDuration);
-    audio.addEventListener('ended', handleEnded);
 
     return () => {
       audio.removeEventListener('timeupdate', updateTime);
       audio.removeEventListener('loadedmetadata', updateDuration);
-      audio.removeEventListener('ended', handleEnded);
       audio.pause();
     };
   }, []);
+
+  const playEpisode = useCallback((book: Book, episode: Episode) => {
+    setCurrentBook(book);
+    setCurrentEpisode(episode);
+    if (audioRef.current) {
+      const fullUrl = episode.audioUrl.startsWith('http')
+        ? episode.audioUrl
+        : `${window.location.origin}${episode.audioUrl}`;
+      audioRef.current.src = fullUrl;
+      audioRef.current.volume = volume;
+      audioRef.current.playbackRate = playbackRate; 
+      audioRef.current.play().then(() => setIsPlaying(true)).catch(console.error);
+    }
+  }, [volume, playbackRate]);
+
+  // Bind the Auto-Play Next logic whenever the current track changes
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.onended = () => {
+        setIsPlaying(false);
+        
+        // Find the next episode in the array
+        if (currentBook && currentEpisode && currentBook.episodes) {
+          const currentIndex = currentBook.episodes.findIndex(e => e.id === currentEpisode.id);
+          
+          if (currentIndex !== -1 && currentIndex < currentBook.episodes.length - 1) {
+            const nextEpisode = currentBook.episodes[currentIndex + 1];
+            // Add a tiny 500ms delay so the transition feels natural, not abrupt
+            setTimeout(() => {
+              playEpisode(currentBook, nextEpisode);
+            }, 500);
+          }
+        }
+      };
+    }
+  }, [currentBook, currentEpisode, playEpisode]);
 
   // Auto-save progress to database every 10 seconds
   useEffect(() => {
@@ -64,20 +98,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }, 10000);
     return () => clearInterval(interval);
   }, [isPlaying, currentEpisode, currentBook, duration]);
-
-  const playEpisode = (book: Book, episode: Episode) => {
-    setCurrentBook(book);
-    setCurrentEpisode(episode);
-    if (audioRef.current) {
-      const fullUrl = episode.audioUrl.startsWith('http')
-        ? episode.audioUrl
-        : `${window.location.origin}${episode.audioUrl}`;
-      audioRef.current.src = fullUrl;
-      audioRef.current.volume = volume;
-      audioRef.current.playbackRate = playbackRate; // Apply current speed to new track
-      audioRef.current.play().then(() => setIsPlaying(true)).catch(console.error);
-    }
-  };
 
   const togglePlayPause = () => {
     if (!audioRef.current || !currentEpisode) return;
