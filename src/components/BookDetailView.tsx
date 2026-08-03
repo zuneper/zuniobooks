@@ -62,10 +62,6 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
 
   return (
     <div className="relative min-h-screen pb-32 pt-4 max-w-[1200px] mx-auto z-10">
-      
-      {/* ======================================= */}
-      {/* SPOTIFY-STYLE DYNAMIC GRADIENT          */}
-      {/* ======================================= */}
       <div className="absolute top-[-50px] left-[-10vw] right-[-10vw] h-[600px] overflow-hidden -z-10 pointer-events-none">
         <motion.div
           initial={{ opacity: 0 }}
@@ -74,11 +70,9 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
           className="absolute inset-0 bg-cover bg-center blur-[100px] transform scale-125 origin-top"
           style={{ backgroundImage: `url(${book.coverUrl})` }}
         />
-        {/* Fade to the dark background color */}
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#121212]/80 to-[#121212]" />
       </div>
 
-      {/* Top Navigation */}
       <motion.button
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
@@ -91,7 +85,6 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
         <span className="text-sm font-bold tracking-wide">Back</span>
       </motion.button>
 
-      {/* Hero Header Section */}
       <div className="flex flex-col md:flex-row gap-8 md:gap-10 mb-12 items-end">
         <motion.div 
           layoutId={`book-cover-${book.id}`}
@@ -135,7 +128,8 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
                   else playEpisode(book, book.episodes[0]);
                 }
               }}
-              className="flex items-center justify-center w-14 h-14 rounded-full bg-[#1ed760] hover:bg-[#1fdf64] hover:scale-105 active:scale-95 transition-all shadow-[0_8px_16px_rgba(30,215,96,0.3)]"
+              // Premium Yellow (#facc15) Background and Hover (#eab308)
+              className="flex items-center justify-center w-14 h-14 rounded-full bg-[#facc15] hover:bg-[#eab308] hover:scale-105 active:scale-95 transition-all shadow-[0_8px_16px_rgba(250,204,21,0.3)]"
             >
               {isCurrentBookPlaying ? <Pause className="w-6 h-6 text-black" /> : <Play className="w-6 h-6 text-black translate-x-0.5" />}
             </button>
@@ -143,26 +137,24 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
               onClick={handleToggleFavorite}
               className="flex items-center justify-center group"
             >
-              <Heart className={`w-8 h-8 transition-transform group-hover:scale-110 group-active:scale-90 ${isFavorite ? 'text-[#1ed760] fill-[#1ed760]' : 'text-[#b3b3b3] hover:text-white'}`} />
+              <Heart className={`w-8 h-8 transition-transform group-hover:scale-110 group-active:scale-90 ${isFavorite ? 'text-[#facc15] fill-[#facc15]' : 'text-[#b3b3b3] hover:text-white'}`} />
             </button>
           </div>
         </motion.div>
       </div>
 
-      {/* Admin Quick Action */}
       {user?.role === 'admin' && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mb-10">
           <button
             onClick={() => onNavigateAdminUploadEpisode(book.id)}
             className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 text-white text-sm font-bold transition-colors"
           >
-            <PlusCircle className="w-4 h-4 text-[#1ed760]" />
+            <PlusCircle className="w-4 h-4 text-[#facc15]" />
             <span>Upload New Chapter</span>
           </button>
         </motion.div>
       )}
 
-      {/* Chapter List */}
       <motion.div variants={listVariants} initial="hidden" animate="show" className="space-y-1">
         <div className="flex items-center px-4 py-2 border-b border-white/10 text-xs font-bold text-[#b3b3b3] uppercase tracking-wider mb-4 sticky top-0 bg-[#121212]/95 backdrop-blur-md z-20">
           <div className="w-12 text-center">#</div>
@@ -186,13 +178,13 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
                 }`}
               >
                 <div className="w-12 text-center">
-                  <span className={`text-base font-medium group-hover:hidden ${isThisEpisodeSelected ? 'text-[#1ed760]' : 'text-[#b3b3b3]'}`}>
+                  <span className={`text-base font-medium group-hover:hidden ${isThisEpisodeSelected ? 'text-[#facc15]' : 'text-[#b3b3b3]'}`}>
                     {index + 1}
                   </span>
-                  <Play className={`w-4 h-4 mx-auto hidden group-hover:block ${isThisEpisodeSelected ? 'text-[#1ed760]' : 'text-white'}`} />
+                  <Play className={`w-4 h-4 mx-auto hidden group-hover:block ${isThisEpisodeSelected ? 'text-[#facc15]' : 'text-white'}`} />
                 </div>
                 <div className="flex-1 min-w-0 pr-4">
-                  <h4 className={`text-base font-medium leading-relaxed truncate ${isThisEpisodeSelected ? 'text-[#1ed760]' : 'text-white'}`}>
+                  <h4 className={`text-base font-medium leading-relaxed truncate ${isThisEpisodeSelected ? 'text-[#facc15]' : 'text-white'}`}>
                     {ep.title}
                   </h4>
                 </div>
