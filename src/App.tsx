@@ -14,7 +14,7 @@ import { AdminPortal } from './components/AdminPortal';
 import { AuthModal } from './components/AuthModal';
 import { GuestAuthView } from './components/GuestAuthView';
 
-// Define the smooth, Apple-like easing curve for our page transitions
+// Smooth, premium easing curve for page transitions
 const pageVariants = {
   initial: { opacity: 0, y: 15, scale: 0.98 },
   animate: { opacity: 1, y: 0, scale: 1 },
@@ -87,7 +87,7 @@ export function AppContent() {
   };
 
   return (
-    <div className="relative min-h-screen text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-slate-950 overflow-x-hidden">
+    <div className="relative min-h-screen text-slate-100 flex flex-col font-sans selection:bg-[#1ed760] selection:text-black overflow-x-hidden bg-[#121212]">
       <GalaxyBackground />
 
       <div className="relative z-10 flex flex-col min-h-screen">
@@ -103,7 +103,6 @@ export function AppContent() {
             setSelectedBookId(null);
             setSearchQuery('');
           }}
-          activeView={activeView}
           onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         />
 
@@ -127,8 +126,8 @@ export function AppContent() {
               onClose={() => setIsMobileMenuOpen(false)}
             />
 
-            <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0 overflow-y-auto overflow-x-hidden">
-              {/* AnimatePresence handles the unmounting animation of the previous view */}
+            {/* The main-scroll-container ID is required here for the sticky header transition */}
+            <main id="main-scroll-container" className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0 overflow-y-auto overflow-x-hidden">
               <AnimatePresence mode="wait">
                 {activeView === 'explore' && (
                   <motion.div
