@@ -41,11 +41,10 @@ const SmartMarquee: React.FC<{ text: string; className?: string; threshold?: num
 };
 
 export const AudioPlayerBar: React.FC = () => {
-  const audioContext = useAudio() as any; 
   const {
     currentBook, currentEpisode, isPlaying, progress, duration, volume, 
-    playbackRate = 1, togglePlayPause, setVolume, setPlaybackRate, seek
-  } = audioContext;
+    playbackRate, togglePlayPause, setVolume, setPlaybackRate, seek
+  } = useAudio();
 
   const [isDragging, setIsDragging] = useState(false);
   const [dragProgress, setDragProgress] = useState(0);
@@ -61,12 +60,12 @@ export const AudioPlayerBar: React.FC = () => {
   const speedMenuRef = useRef<HTMLDivElement>(null);
   const sleepMenuRef = useRef<HTMLDivElement>(null);
 
-  // Sync favorite state
+  // Sync favorite state when the book changes
   useEffect(() => {
     setIsFavorite(currentBook?.isFavorite || false);
   }, [currentBook]);
 
-  // Handle clicking outside of menus
+  // Handle clicking outside of popup menus to close them
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (speedMenuRef.current && !speedMenuRef.current.contains(e.target as Node)) setShowSpeedMenu(false);
@@ -83,7 +82,7 @@ export const AudioPlayerBar: React.FC = () => {
       setSleepTimer(prev => {
         if (prev === null) return null;
         if (prev <= 1) {
-          if (togglePlayPause) togglePlayPause(); // Pause the audio!
+          togglePlayPause(); // Pause the audio when timer hits 0
           return null;
         }
         return prev - 1;
@@ -98,9 +97,10 @@ export const AudioPlayerBar: React.FC = () => {
 
   if (!currentBook || !currentEpisode) return null;
 
+  // Optimistic UI update for toggling favorites
   const handleToggleFavorite = async () => {
     const originalState = isFavorite;
-    setIsFavorite(!isFavorite); // Optimistic UI update
+    setIsFavorite(!isFavorite); 
     try {
       const res = await api.toggleFavorite(currentBook.id);
       setIsFavorite(res.isFavorite);
@@ -119,21 +119,21 @@ export const AudioPlayerBar: React.FC = () => {
 
   const handleProgressDragEnd = () => {
     if (isDragging) {
-      if (seek) seek(dragProgress);
+      seek(dragProgress);
       setIsDragging(false);
     }
   };
 
   const handleVolumeDrag = (e: React.MouseEvent | React.TouchEvent) => {
-    if (!volumeBarRef.current || !setVolume) return;
+    if (!volumeBarRef.current) return;
     const rect = volumeBarRef.current.getBoundingClientRect();
     const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
     const pos = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
     setVolume(pos);
   };
 
-  const skipForward15 = () => { if (seek && duration) seek(Math.min((progress || 0) + 15, duration)); };
-  const skipBackward15 = () => { if (seek) seek(Math.max((progress || 0) - 15, 0)); };
+  const skipForward15 = () => { if (duration) seek(Math.min((progress || 0) + 15, duration)); };
+  const skipBackward15 = () => { seek(Math.max((progress || 0) - 15, 0)); };
 
   const VolumeIcon = volume === 0 ? VolumeX : volume < 0.5 ? Volume1 : Volume2;
   const currentVol = volume ?? 1;
@@ -160,7 +160,7 @@ export const AudioPlayerBar: React.FC = () => {
           </div>
           <button 
             onClick={handleToggleFavorite}
-            className={`${isFavorite ? 'text-[#1ed760]' : 'text-[#b3b3b3] hover:text-white'} transition-colors ml-2 hidden sm:block active:scale-95`}
+            className={`${isFavorite ? 'text-[#1ed760]' : 'text-[#b3b3b3] hover:text-white'} transition-colors ml-2 hidden sm:block active:scale-95 flex-shrink-0`}
           >
             <Heart className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />
           </button>
@@ -173,7 +173,7 @@ export const AudioPlayerBar: React.FC = () => {
             <button className="text-[#4d4d4d] cursor-not-allowed hidden sm:block"><SkipBack className="w-5 h-5 fill-current" /></button>
             <button 
               onClick={togglePlayPause}
-              className="w-8 h-8 flex items-center justify-center rounded-full bg-white text-black hover:scale-105 transition-transform active:scale-95"
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-white text-black hover:scale-105 transition-transform active:scale-95 flex-shrink-0"
             >
               {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current translate-x-[1px]" />}
             </button>
@@ -218,13 +218,16 @@ export const AudioPlayerBar: React.FC = () => {
             <AnimatePresence>
               {showSpeedMenu && (
                 <motion.div 
-                  initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
-                  className="absolute bottom-full mb-4 right-0 bg-[#282828] border border-[#3e3e3e] rounded-lg shadow-2xl p-1.5 w-24 flex flex-col gap-1"
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }} 
+                  animate={{ opacity: 1, y: 0, scale: 1 }} 
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute bottom-full mb-4 right-0 bg-[#282828] border border-[#3e3e3e] rounded-lg shadow-2xl p-1.5 w-24 flex flex-col gap-1 z-50"
                 >
                   {[0.5, 0.8, 1, 1.2, 1.5, 2].map(speed => (
                     <button
                       key={speed}
-                      onClick={() => { if(setPlaybackRate) setPlaybackRate(speed); setShowSpeedMenu(false); }}
+                      onClick={() => { setPlaybackRate(speed); setShowSpeedMenu(false); }}
                       className={`w-full text-left px-3 py-1.5 text-xs rounded-md transition-colors ${playbackRate === speed ? 'text-[#1ed760] font-bold bg-[#3e3e3e]' : 'text-[#b3b3b3] hover:bg-[#3e3e3e] hover:text-white'}`}
                     >
                       {speed}x
@@ -243,15 +246,18 @@ export const AudioPlayerBar: React.FC = () => {
               title="Sleep Timer"
             >
               <Moon className="w-[18px] h-[18px]" />
-              {sleepTimer && <span className="text-[10px] font-mono">{formatTime(sleepTimer)}</span>}
+              {sleepTimer && <span className="text-[10px] font-mono bg-[#3e3e3e] px-1 rounded">{formatTime(sleepTimer)}</span>}
             </button>
             <AnimatePresence>
               {showSleepMenu && (
                 <motion.div 
-                  initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
-                  className="absolute bottom-full mb-4 right-0 bg-[#282828] border border-[#3e3e3e] rounded-lg shadow-2xl p-1.5 w-32 flex flex-col gap-1"
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }} 
+                  animate={{ opacity: 1, y: 0, scale: 1 }} 
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute bottom-full mb-4 right-0 bg-[#282828] border border-[#3e3e3e] rounded-lg shadow-2xl p-1.5 w-32 flex flex-col gap-1 z-50"
                 >
-                  <div className="px-2 py-1.5 text-xs text-white font-bold border-b border-[#3e3e3e] mb-1">Sleep Timer</div>
+                  <div className="px-2 py-1.5 text-[11px] text-[#a7a7a7] uppercase tracking-wider font-bold border-b border-[#3e3e3e] mb-1">Sleep Timer</div>
                   {[15, 30, 45, 60].map(mins => (
                     <button
                       key={mins}
@@ -274,7 +280,7 @@ export const AudioPlayerBar: React.FC = () => {
           
           {/* Volume Control */}
           <div className="flex items-center gap-2 w-[93px] group">
-            <button onClick={() => setVolume && setVolume(currentVol === 0 ? 1 : 0)} className="text-[#b3b3b3] hover:text-white transition-colors">
+            <button onClick={() => setVolume(currentVol === 0 ? 1 : 0)} className="text-[#b3b3b3] hover:text-white transition-colors">
               <VolumeIcon className="w-[18px] h-[18px]" />
             </button>
             <div className="relative flex items-center h-4 flex-1 cursor-pointer" ref={volumeBarRef} onMouseDown={handleVolumeDrag} onMouseMove={(e) => e.buttons === 1 && handleVolumeDrag(e)}>
@@ -284,8 +290,8 @@ export const AudioPlayerBar: React.FC = () => {
               <div className="absolute w-3 h-3 bg-white rounded-full opacity-0 group-hover:opacity-100 shadow-md transition-opacity -ml-1.5" style={{ left: `${currentVol * 100}%` }} />
             </div>
           </div>
-
         </div>
+
       </div>
     </motion.div>
   );
