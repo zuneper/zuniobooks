@@ -1,7 +1,6 @@
 import React from 'react';
-import { Home, Bookmark, Heart, Shield, Volume2, X } from 'lucide-react';
+import { Home, Bookmark, Heart, Shield, X } from 'lucide-react';
 import { User } from '../types';
-import { useAudio } from '../context/AudioContext';
 
 interface SidebarProps {
   activeView: string;
@@ -18,100 +17,67 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isOpen,
   onClose,
 }) => {
-  const { currentBook, currentEpisode, isPlaying } = useAudio();
-
   return (
     <>
-      {/* Mobile Backdrop Overlay */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden"
-          onClick={onClose}
-        />
-      )}
+      {isOpen && <div className="fixed inset-0 bg-black/70 z-40 md:hidden" onClick={onClose} />}
 
-      {/* Sidebar Drawer */}
       <aside
         className={`fixed inset-y-0 left-0 z-50 transform ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
-        } md:relative md:translate-x-0 w-64 flex-shrink-0 flex flex-col bg-[#0b0819]/95 md:bg-[#0b0819]/80 backdrop-blur-2xl md:backdrop-blur-lg border-r border-white/5 p-4 space-y-6 transition-transform duration-300 ease-in-out`}
+        } md:relative md:translate-x-0 w-[240px] flex-shrink-0 flex flex-col bg-black p-6 space-y-6 transition-transform duration-300 ease-in-out`}
       >
-        <div className="flex items-center justify-between md:hidden pb-2 border-b border-white/10">
+        <div className="flex items-center justify-between md:hidden pb-4 border-b border-[#282828]">
           <span className="text-white font-bold tracking-widest uppercase text-xs">Menu</span>
-          <button onClick={onClose} className="p-1 text-slate-400 hover:text-white">
+          <button onClick={onClose} className="text-[#b3b3b3] hover:text-white">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <nav className="space-y-1">
+        <nav className="space-y-2">
           <button
             onClick={() => { setActiveView('explore'); onClose(); }}
-            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-              activeView === 'explore'
-                ? 'bg-gradient-to-r from-purple-900/60 to-indigo-900/40 text-cyan-300 border border-cyan-500/30 shadow-[0_0_12px_rgba(6,182,212,0.15)]'
-                : 'text-slate-400 hover:text-slate-100 hover:bg-white/5'
+            className={`w-full flex items-center gap-4 px-4 py-3 rounded-md text-sm font-bold transition-colors ${
+              activeView === 'explore' ? 'bg-[#282828] text-white' : 'text-[#b3b3b3] hover:text-white hover:bg-[#181818]'
             }`}
           >
-            <Home className="w-4 h-4 text-cyan-400" />
-            <span>Explore Books</span>
+            <Home className="w-5 h-5" />
+            <span>Home</span>
           </button>
 
           <button
             onClick={() => { setActiveView('library'); onClose(); }}
-            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-              activeView === 'library'
-                ? 'bg-gradient-to-r from-purple-900/60 to-indigo-900/40 text-cyan-300 border border-cyan-500/30 shadow-[0_0_12px_rgba(6,182,212,0.15)]'
-                : 'text-slate-400 hover:text-slate-100 hover:bg-white/5'
+            className={`w-full flex items-center gap-4 px-4 py-3 rounded-md text-sm font-bold transition-colors ${
+              activeView === 'library' ? 'bg-[#282828] text-white' : 'text-[#b3b3b3] hover:text-white hover:bg-[#181818]'
             }`}
           >
-            <Bookmark className="w-4 h-4 text-purple-400" />
-            <span>Your Library</span>
+            <Bookmark className="w-5 h-5" />
+            <span>Library</span>
           </button>
 
           <button
             onClick={() => { setActiveView('favorites'); onClose(); }}
-            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-              activeView === 'favorites'
-                ? 'bg-gradient-to-r from-purple-900/60 to-indigo-900/40 text-cyan-300 border border-cyan-500/30 shadow-[0_0_12px_rgba(6,182,212,0.15)]'
-                : 'text-slate-400 hover:text-slate-100 hover:bg-white/5'
+            className={`w-full flex items-center gap-4 px-4 py-3 rounded-md text-sm font-bold transition-colors ${
+              activeView === 'favorites' ? 'bg-[#282828] text-white' : 'text-[#b3b3b3] hover:text-white hover:bg-[#181818]'
             }`}
           >
-            <Heart className="w-4 h-4 text-rose-400" />
+            <Heart className="w-5 h-5" />
             <span>Favorites</span>
           </button>
 
           {user?.role === 'admin' && (
-            <button
-              onClick={() => { setActiveView('admin'); onClose(); }}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-                activeView === 'admin'
-                  ? 'bg-gradient-to-r from-purple-800 to-indigo-800 text-white border border-purple-400/50 shadow-[0_0_15px_rgba(168,85,247,0.3)]'
-                  : 'text-purple-300 hover:text-white hover:bg-purple-900/30 border border-purple-500/20'
-              }`}
-            >
-              <Shield className="w-4 h-4 text-cyan-300" />
-              <span>Admin Upload Portal</span>
-            </button>
+            <div className="pt-6 mt-6 border-t border-[#282828]">
+              <button
+                onClick={() => { setActiveView('admin'); onClose(); }}
+                className={`w-full flex items-center gap-4 px-4 py-3 rounded-md text-sm font-bold transition-colors ${
+                  activeView === 'admin' ? 'bg-[#282828] text-white' : 'text-[#b3b3b3] hover:text-white hover:bg-[#181818]'
+                }`}
+              >
+                <Shield className="w-5 h-5" />
+                <span>Admin Portal</span>
+              </button>
+            </div>
           )}
         </nav>
-
-        <div className="flex-1" />
-
-        {currentBook && currentEpisode && (
-          <div className="p-3 rounded-2xl bg-gradient-to-b from-purple-950/40 to-indigo-950/40 border border-purple-500/20 space-y-2">
-            <div className="flex items-center gap-2">
-              <Volume2 className={`w-3.5 h-3.5 text-cyan-400 ${isPlaying ? 'animate-bounce' : ''}`} />
-              <span className="text-[11px] font-semibold text-purple-200 uppercase tracking-wider">Now Playing</span>
-            </div>
-            <div className="flex items-center gap-2.5">
-              <img src={currentBook.coverUrl} alt={currentBook.title} className="w-10 h-10 rounded-lg object-cover border border-white/10" />
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-bold text-white truncate">{currentBook.title}</p>
-                <p className="text-[11px] text-cyan-300 truncate">{currentEpisode.title}</p>
-              </div>
-            </div>
-          </div>
-        )}
       </aside>
     </>
   );
