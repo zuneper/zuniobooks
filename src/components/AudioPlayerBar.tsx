@@ -52,7 +52,6 @@ export const AudioPlayerBar: React.FC = () => {
   const [isFavorite, setIsFavorite] = useState(false);
   const [sleepTimer, setSleepTimer] = useState<number | null>(null);
   
-  // Menu Visibility
   const [showSleepMenu, setShowSleepMenu] = useState(false);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
 
@@ -60,7 +59,6 @@ export const AudioPlayerBar: React.FC = () => {
   const mobileProgressBarRef = useRef<HTMLDivElement>(null);
   const volumeBarRef = useRef<HTMLDivElement>(null);
   
-  // Separate refs to prevent collision between Desktop and Mobile DOM nodes
   const desktopSpeedRef = useRef<HTMLDivElement>(null);
   const mobileSpeedRef = useRef<HTMLDivElement>(null);
   const desktopSleepRef = useRef<HTMLDivElement>(null);
@@ -70,9 +68,9 @@ export const AudioPlayerBar: React.FC = () => {
     setIsFavorite(currentBook?.isFavorite || false);
   }, [currentBook]);
 
-  // Safely check clicks outside the menus across both desktop and mobile views
+  // Handle both mouse and touch events safely to prevent menus from flickering shut
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
       const target = e.target as Node;
       
       const clickedSpeed = desktopSpeedRef.current?.contains(target) || mobileSpeedRef.current?.contains(target);
@@ -83,7 +81,11 @@ export const AudioPlayerBar: React.FC = () => {
     };
 
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
   }, []);
 
   useEffect(() => {
@@ -147,11 +149,11 @@ export const AudioPlayerBar: React.FC = () => {
   const VolumeIcon = volume === 0 ? VolumeX : volume < 0.5 ? Volume1 : Volume2;
   const currentVol = volume ?? 1;
 
-  // Render Helpers (These return safe React elements instead of causing component remounts)
-  const renderSpeedMenu = (ref: React.RefObject<HTMLDivElement>) => (
+  // Alignment prop ensures mobile menus don't render off-screen
+  const renderSpeedMenu = (ref: React.RefObject<HTMLDivElement>, alignmentClass: string) => (
     <div className="relative flex items-center" ref={ref}>
       <button
-        onClick={() => { setShowSpeedMenu(!showSpeedMenu); setShowSleepMenu(false); }}
+        onClick={(e) => { e.stopPropagation(); setShowSpeedMenu(!showSpeedMenu); setShowSleepMenu(false); }}
         className={`text-[12px] font-bold px-2 py-1 rounded-md border ${playbackRate !== 1 ? 'border-[#1ed760] text-[#1ed760]' : 'border-[#b3b3b3] text-[#b3b3b3] hover:text-white hover:border-white'} transition-colors`}
       >
         {playbackRate}x
@@ -160,12 +162,12 @@ export const AudioPlayerBar: React.FC = () => {
         {showSpeedMenu && (
           <motion.div 
             initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            className="absolute bottom-full mb-4 right-0 bg-[#282828] border border-[#3e3e3e] rounded-lg shadow-2xl p-1.5 w-24 flex flex-col gap-1 z-[110]"
+            className={`absolute bottom-full mb-4 ${alignmentClass} bg-[#282828] border border-[#3e3e3e] rounded-lg shadow-2xl p-1.5 w-24 flex flex-col gap-1 z-[110]`}
           >
             {[0.5, 0.8, 1, 1.2, 1.5, 2].map(speed => (
               <button
                 key={speed}
-                onClick={() => { setPlaybackRate(speed); setShowSpeedMenu(false); }}
+                onClick={(e) => { e.stopPropagation(); setPlaybackRate(speed); setShowSpeedMenu(false); }}
                 className={`w-full text-left px-3 py-1.5 text-xs rounded-md transition-colors ${playbackRate === speed ? 'text-[#1ed760] font-bold bg-[#3e3e3e]' : 'text-[#b3b3b3] hover:bg-[#3e3e3e] hover:text-white'}`}
               >
                 {speed}x
@@ -177,10 +179,10 @@ export const AudioPlayerBar: React.FC = () => {
     </div>
   );
 
-  const renderSleepMenu = (ref: React.RefObject<HTMLDivElement>) => (
+  const renderSleepMenu = (ref: React.RefObject<HTMLDivElement>, alignmentClass: string) => (
     <div className="relative flex items-center" ref={ref}>
       <button
-        onClick={() => { setShowSleepMenu(!showSleepMenu); setShowSpeedMenu(false); }}
+        onClick={(e) => { e.stopPropagation(); setShowSleepMenu(!showSleepMenu); setShowSpeedMenu(false); }}
         className={`flex items-center gap-1.5 transition-colors ${sleepTimer ? 'text-[#1ed760]' : 'text-[#b3b3b3] hover:text-white'}`}
       >
         <Moon className="w-5 h-5" />
@@ -190,20 +192,20 @@ export const AudioPlayerBar: React.FC = () => {
         {showSleepMenu && (
           <motion.div 
             initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            className="absolute bottom-full mb-4 right-0 bg-[#282828] border border-[#3e3e3e] rounded-lg shadow-2xl p-1.5 w-32 flex flex-col gap-1 z-[110]"
+            className={`absolute bottom-full mb-4 ${alignmentClass} bg-[#282828] border border-[#3e3e3e] rounded-lg shadow-2xl p-1.5 w-32 flex flex-col gap-1 z-[110]`}
           >
             <div className="px-2 py-1.5 text-[11px] text-[#a7a7a7] uppercase tracking-wider font-bold border-b border-[#3e3e3e] mb-1">Sleep Timer</div>
             {[15, 30, 45, 60].map(mins => (
               <button
                 key={mins}
-                onClick={() => { setSleepTimer(mins * 60); setShowSleepMenu(false); }}
+                onClick={(e) => { e.stopPropagation(); setSleepTimer(mins * 60); setShowSleepMenu(false); }}
                 className="w-full text-left px-2 py-1.5 text-xs text-[#b3b3b3] hover:bg-[#3e3e3e] hover:text-white rounded-md transition-colors"
               >
                 {mins} Minutes
               </button>
             ))}
             <button
-              onClick={() => { setSleepTimer(null); setShowSleepMenu(false); }}
+              onClick={(e) => { e.stopPropagation(); setSleepTimer(null); setShowSleepMenu(false); }}
               className="w-full text-left px-2 py-1.5 text-xs text-[#b3b3b3] hover:bg-[#3e3e3e] hover:text-white rounded-md transition-colors mt-1 border-t border-[#3e3e3e]"
             >
               Turn Off
@@ -269,8 +271,8 @@ export const AudioPlayerBar: React.FC = () => {
 
           {/* Desktop Right */}
           <div className="flex items-center justify-end w-[30%] min-w-[180px] gap-4">
-            {renderSpeedMenu(desktopSpeedRef)}
-            {renderSleepMenu(desktopSleepRef)}
+            {renderSpeedMenu(desktopSpeedRef, 'right-0')}
+            {renderSleepMenu(desktopSleepRef, 'right-0')}
             <div className="flex items-center gap-2 w-[93px] group">
               <button onClick={() => setVolume(currentVol === 0 ? 1 : 0)} className="text-[#b3b3b3] hover:text-white transition-colors">
                 <VolumeIcon className="w-[18px] h-[18px]" />
@@ -376,8 +378,9 @@ export const AudioPlayerBar: React.FC = () => {
             </div>
 
             <div className="flex items-center justify-between pb-6">
-              {renderSpeedMenu(mobileSpeedRef)}
-              {renderSleepMenu(mobileSleepRef)}
+              {/* Note the 'left-0' aligns the dropdown correctly on the mobile view */}
+              {renderSpeedMenu(mobileSpeedRef, 'left-0')}
+              {renderSleepMenu(mobileSleepRef, 'right-0')}
             </div>
           </motion.div>
         )}
