@@ -74,7 +74,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         : `${window.location.origin}${episode.audioUrl}`;
       audioRef.current.src = fullUrl;
       audioRef.current.volume = volume;
-      audioRef.current.playbackRate = playbackRate;
+      audioRef.current.playbackRate = playbackRate; // Apply current speed to new track
       audioRef.current.play().then(() => setIsPlaying(true)).catch(console.error);
     }
   };
