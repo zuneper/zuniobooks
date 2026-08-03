@@ -2,8 +2,9 @@ import fs from 'fs';
 import path from 'path';
 import bcrypt from 'bcryptjs';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
-const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
+// Respect Railway Persistent Volume variables if set, fallback to local path
+const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), 'data');
+const UPLOADS_DIR = process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads');
 const AUDIO_UPLOADS_DIR = path.join(UPLOADS_DIR, 'audio');
 const COVERS_UPLOADS_DIR = path.join(UPLOADS_DIR, 'covers');
 
@@ -168,9 +169,7 @@ export const dbService = {
     const bookIdx = db.books.findIndex((b) => b.id === id);
     if (bookIdx === -1) return false;
     db.books.splice(bookIdx, 1);
-    // Delete episodes for this book
     db.episodes = db.episodes.filter((e) => e.bookId !== id);
-    // Delete favorites for this book
     db.favorites = db.favorites.filter((f) => f.bookId !== id);
     saveDB(db);
     return true;
@@ -217,11 +216,11 @@ export const dbService = {
     if (idx !== -1) {
       db.favorites.splice(idx, 1);
       saveDB(db);
-      return false; // Removed
+      return false;
     } else {
       db.favorites.push({ userId, bookId, createdAt: new Date().toISOString() });
       saveDB(db);
-      return true; // Added
+      return true;
     }
   },
   getUserFavoriteBookIds(userId: string): string[] {
@@ -230,7 +229,14 @@ export const dbService = {
   },
 
   // Progress operations
-  saveProgress(userId: string, episodeId: string, bookId: string, positionSeconds: number, durationSeconds: number, completed: boolean): ProgressRecord {
+  saveProgress(
+    userId: string,
+    episodeId: string,
+    bookId: string,
+    positionSeconds: number,
+    durationSeconds: number,
+    completed: boolean
+  ): ProgressRecord {
     const db = loadDB();
     const idx = db.progress.findIndex((p) => p.userId === userId && p.episodeId === episodeId);
     const rec: ProgressRecord = {
