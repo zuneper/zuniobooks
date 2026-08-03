@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { X, Shield, Sparkles, User as UserIcon, Lock, Mail } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X, Library, AlertCircle } from 'lucide-react';
 import { api } from '../lib/api';
 import { User } from '../types';
 
@@ -10,67 +11,25 @@ interface AuthModalProps {
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => {
-  const [identifier, setIdentifier] = useState('');
-  const [mode, setMode] = useState<'login' | 'register'>('login');
-  const [userDetected, setUserDetected] = useState<boolean | null>(null);
-  const [checkingUser, setCheckingUser] = useState(false);
+  const [isLogin, setIsLogin] = useState(true);
   const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  if (!isOpen) return null;
-
-  // Auto detect if user exists when identifier changes
-  const handleIdentifierChange = async (val: string) => {
-    setIdentifier(val);
-    setError(null);
-    if (!val.trim()) {
-      setUserDetected(null);
-      return;
-    }
-
-    setCheckingUser(true);
-    try {
-      const res = await api.checkUserExist(val.trim());
-      setUserDetected(res.exists);
-      if (res.exists) {
-        setMode('login');
-        if (res.username) setUsername(res.username);
-      } else {
-        setMode('register');
-        if (!val.includes('@')) {
-          setUsername(val.trim());
-        } else {
-          setEmail(val.trim());
-        }
-      }
-    } catch {
-      // ignore detection error
-    } finally {
-      setCheckingUser(false);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
+    setError('');
     setLoading(true);
-
     try {
-      if (mode === 'login') {
-        const targetUsername = username || identifier;
-        const res = await api.login(targetUsername, password);
-        onSuccess(res.user);
-        onClose();
+      if (isLogin) {
+        const user = await api.login(username, password);
+        onSuccess(user);
       } else {
-        const targetUsername = username || identifier;
-        const targetEmail = email || (identifier.includes('@') ? identifier : `${targetUsername}@example.com`);
-        const res = await api.register(targetUsername, targetEmail, password);
-        onSuccess(res.user);
-        onClose();
+        const user = await api.register(username, password);
+        onSuccess(user);
       }
+      onClose();
     } catch (err: any) {
       setError(err.message || 'Authentication failed');
     } finally {
@@ -79,166 +38,99 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-md p-6 sm:p-8 rounded-3xl bg-[#0e0a22]/95 border border-purple-500/30 shadow-[0_0_50px_rgba(147,51,234,0.3)] space-y-6">
-        
-        {/* Close Button */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 p-1.5 rounded-full text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 transition-colors"
-        >
-          <X className="w-4 h-4" />
-        </button>
-
-        {/* Header */}
-        <div className="text-center space-y-1">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-tr from-purple-600 via-indigo-500 to-cyan-400 p-[1px] shadow-lg mb-2">
-            <div className="w-full h-full bg-[#0d091f] rounded-[15px] flex items-center justify-center">
-              <Sparkles className="w-6 h-6 text-cyan-300 animate-pulse" />
-            </div>
-          </div>
-          <h2 className="text-xl font-black text-white">
-            {mode === 'login' ? 'Sign In to Zuniobooks' : 'Create Your Account'}
-          </h2>
-          <p className="text-xs text-slate-400">
-            {mode === 'login'
-              ? 'Enter your credentials to access your audiobooks library.'
-              : 'Sign up to favorite audiobooks and track chapter progress.'}
-          </p>
-        </div>
-
-        {error && (
-          <div className="p-3 rounded-xl bg-rose-950/50 border border-rose-500/40 text-xs text-rose-300 font-medium">
-            {error}
-          </div>
-        )}
-
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-300 mb-1">Username or Email</label>
-            <div className="relative flex items-center">
-              <UserIcon className="absolute left-3.5 w-4 h-4 text-slate-400" />
-              <input
-                type="text"
-                required
-                value={identifier}
-                onChange={(e) => handleIdentifierChange(e.target.value)}
-                placeholder="Enter username or email"
-                className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 transition-all"
-              />
-            </div>
-            {checkingUser && (
-              <p className="text-[10px] text-cyan-400 mt-1">Checking account availability...</p>
-            )}
-            {!checkingUser && userDetected === true && (
-              <p className="text-[10px] text-emerald-400 mt-1 font-semibold flex items-center gap-1">
-                ✓ Account found! Auto-switched to Login.
-              </p>
-            )}
-            {!checkingUser && userDetected === false && identifier.trim() !== '' && (
-              <p className="text-[10px] text-cyan-300 mt-1 font-semibold flex items-center gap-1">
-                + New user detected! Auto-switched to Registration.
-              </p>
-            )}
-          </div>
-
-          {mode === 'register' && (
-            <>
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">Username</label>
-                <div className="relative flex items-center">
-                  <UserIcon className="absolute left-3.5 w-4 h-4 text-slate-400" />
-                  <input
-                    type="text"
-                    required
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder="Choose a username"
-                    className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">Email Address</label>
-                <div className="relative flex items-center">
-                  <Mail className="absolute left-3.5 w-4 h-4 text-slate-400" />
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="your@email.com"
-                    className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
-                  />
-                </div>
-              </div>
-            </>
-          )}
-
-          <div>
-            <label className="block text-xs font-bold text-slate-300 mb-1">Password</label>
-            <div className="relative flex items-center">
-              <Lock className="absolute left-3.5 w-4 h-4 text-slate-400" />
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
-              />
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-500 hover:from-purple-500 hover:to-cyan-400 text-white font-bold text-xs shadow-[0_0_20px_rgba(6,182,212,0.4)] transition-all active:scale-95"
+    <AnimatePresence>
+      {isOpen && (
+        <>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100]"
+          />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-md bg-[#181818] rounded-2xl p-8 z-[101] shadow-2xl border border-[#282828]"
           >
-            {loading
-              ? 'Authenticating...'
-              : mode === 'login'
-              ? 'Sign In to Account'
-              : 'Create Account & Sign In'}
-          </button>
-        </form>
+            <button
+              onClick={onClose}
+              className="absolute top-4 right-4 p-2 text-[#b3b3b3] hover:text-white transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
 
-        {/* Switch Mode Toggle */}
-        <div className="text-center pt-2 border-t border-white/5 text-xs text-slate-400">
-          {mode === 'login' ? (
-            <p>
-              New here?{' '}
-              <button
-                type="button"
-                onClick={() => {
-                  setMode('register');
-                  setError(null);
-                }}
-                className="text-cyan-300 font-bold hover:underline ml-1"
-              >
-                Sign Up
-              </button>
-            </p>
-          ) : (
-            <p>
-              Already registered?{' '}
-              <button
-                type="button"
-                onClick={() => {
-                  setMode('login');
-                  setError(null);
-                }}
-                className="text-cyan-300 font-bold hover:underline ml-1"
-              >
-                Sign In
-              </button>
-            </p>
-          )}
-        </div>
+            <div className="flex flex-col items-center mb-8">
+              <div className="w-12 h-12 rounded-full bg-[#facc15] flex items-center justify-center mb-4 shadow-[0_0_15px_rgba(250,204,21,0.3)]">
+                <Library className="w-6 h-6 text-black" />
+              </div>
+              <h2 className="text-2xl font-black text-white">
+                {isLogin ? 'Welcome back' : 'Create an account'}
+              </h2>
+            </div>
 
-      </div>
-    </div>
+            {error && (
+              <div className="flex items-center gap-2 p-3 mb-6 rounded-md bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-bold">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-[#b3b3b3] mb-1.5 uppercase tracking-wide">
+                  Username
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full px-4 py-3 bg-[#282828] border border-transparent rounded-md text-white focus:outline-none focus:border-[#facc15] focus:bg-[#3e3e3e] transition-all"
+                  placeholder="Enter your username"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[#b3b3b3] mb-1.5 uppercase tracking-wide">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-4 py-3 bg-[#282828] border border-transparent rounded-md text-white focus:outline-none focus:border-[#facc15] focus:bg-[#3e3e3e] transition-all"
+                  placeholder="Enter your password"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3.5 mt-4 rounded-full text-black bg-[#facc15] hover:bg-[#eab308] font-bold active:scale-95 transition-all disabled:opacity-50"
+              >
+                {loading ? 'Please wait...' : isLogin ? 'Log In' : 'Sign Up'}
+              </button>
+            </form>
+
+            <div className="mt-8 text-center pt-6 border-t border-[#282828]">
+              <p className="text-[#b3b3b3] text-sm">
+                {isLogin ? "Don't have an account?" : "Already have an account?"}{' '}
+                <button
+                  onClick={() => {
+                    setIsLogin(!isLogin);
+                    setError('');
+                  }}
+                  className="text-white hover:text-[#facc15] font-bold transition-colors underline underline-offset-4"
+                >
+                  {isLogin ? 'Sign up for free' : 'Log in here'}
+                </button>
+              </p>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
   );
 };
