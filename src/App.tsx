@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { User, Book } from './types';
 import { api } from './lib/api';
 import { AudioProvider } from './context/AudioContext';
@@ -12,6 +13,14 @@ import { LibraryView } from './components/LibraryView';
 import { AdminPortal } from './components/AdminPortal';
 import { AuthModal } from './components/AuthModal';
 import { GuestAuthView } from './components/GuestAuthView';
+
+// Define the smooth, Apple-like easing curve for our page transitions
+const pageVariants = {
+  initial: { opacity: 0, y: 15, scale: 0.98 },
+  animate: { opacity: 1, y: 0, scale: 1 },
+  exit: { opacity: 0, y: -15, scale: 0.98 },
+};
+const pageTransition = { duration: 0.4, ease: [0.22, 1, 0.36, 1] };
 
 export function AppContent() {
   const [user, setUser] = useState<User | null>(null);
@@ -118,54 +127,107 @@ export function AppContent() {
               onClose={() => setIsMobileMenuOpen(false)}
             />
 
-            <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0 overflow-y-auto">
-              {activeView === 'explore' && (
-                <ExploreView
-                  books={books}
-                  searchQuery={searchQuery}
-                  onClearSearch={() => setSearchQuery('')}
-                  onSelectBook={handleSelectBook}
-                  user={user}
-                  onOpenAuth={() => setIsAuthModalOpen(true)}
-                  onNavigateAdmin={() => setActiveView('admin')}
-                  refreshBooks={refreshBooks}
-                />
-              )}
+            <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0 overflow-y-auto overflow-x-hidden">
+              {/* AnimatePresence handles the unmounting animation of the previous view */}
+              <AnimatePresence mode="wait">
+                {activeView === 'explore' && (
+                  <motion.div
+                    key="explore"
+                    initial="initial"
+                    animate="animate"
+                    exit="exit"
+                    variants={pageVariants}
+                    transition={pageTransition}
+                    className="min-h-full"
+                  >
+                    <ExploreView
+                      books={books}
+                      searchQuery={searchQuery}
+                      onClearSearch={() => setSearchQuery('')}
+                      onSelectBook={handleSelectBook}
+                      user={user}
+                      onOpenAuth={() => setIsAuthModalOpen(true)}
+                      onNavigateAdmin={() => setActiveView('admin')}
+                      refreshBooks={refreshBooks}
+                    />
+                  </motion.div>
+                )}
 
-              {activeView === 'detail' && selectedBookId && (
-                <BookDetailView
-                  bookId={selectedBookId}
-                  onBack={() => setActiveView('explore')}
-                  user={user}
-                  onOpenAuth={() => setIsAuthModalOpen(true)}
-                  onNavigateAdminUploadEpisode={handleNavigateAdminUploadEpisode}
-                  refreshBooks={refreshBooks}
-                />
-              )}
+                {activeView === 'detail' && selectedBookId && (
+                  <motion.div
+                    key="detail"
+                    initial="initial"
+                    animate="animate"
+                    exit="exit"
+                    variants={pageVariants}
+                    transition={pageTransition}
+                    className="min-h-full"
+                  >
+                    <BookDetailView
+                      bookId={selectedBookId}
+                      onBack={() => setActiveView('explore')}
+                      user={user}
+                      onOpenAuth={() => setIsAuthModalOpen(true)}
+                      onNavigateAdminUploadEpisode={handleNavigateAdminUploadEpisode}
+                      refreshBooks={refreshBooks}
+                    />
+                  </motion.div>
+                )}
 
-              {activeView === 'library' && (
-                <LibraryView
-                  onSelectBook={handleSelectBook}
-                  user={user}
-                  onOpenAuth={() => setIsAuthModalOpen(true)}
-                />
-              )}
+                {activeView === 'library' && (
+                  <motion.div
+                    key="library"
+                    initial="initial"
+                    animate="animate"
+                    exit="exit"
+                    variants={pageVariants}
+                    transition={pageTransition}
+                    className="min-h-full"
+                  >
+                    <LibraryView
+                      onSelectBook={handleSelectBook}
+                      user={user}
+                      onOpenAuth={() => setIsAuthModalOpen(true)}
+                    />
+                  </motion.div>
+                )}
 
-              {activeView === 'favorites' && (
-                <LibraryView
-                  onSelectBook={handleSelectBook}
-                  user={user}
-                  onOpenAuth={() => setIsAuthModalOpen(true)}
-                />
-              )}
+                {activeView === 'favorites' && (
+                  <motion.div
+                    key="favorites"
+                    initial="initial"
+                    animate="animate"
+                    exit="exit"
+                    variants={pageVariants}
+                    transition={pageTransition}
+                    className="min-h-full"
+                  >
+                    <LibraryView
+                      onSelectBook={handleSelectBook}
+                      user={user}
+                      onOpenAuth={() => setIsAuthModalOpen(true)}
+                    />
+                  </motion.div>
+                )}
 
-              {activeView === 'admin' && (
-                <AdminPortal
-                  user={user}
-                  refreshBooks={refreshBooks}
-                  preSelectedBookId={preSelectedAdminBookId}
-                />
-              )}
+                {activeView === 'admin' && (
+                  <motion.div
+                    key="admin"
+                    initial="initial"
+                    animate="animate"
+                    exit="exit"
+                    variants={pageVariants}
+                    transition={pageTransition}
+                    className="min-h-full"
+                  >
+                    <AdminPortal
+                      user={user}
+                      refreshBooks={refreshBooks}
+                      preSelectedBookId={preSelectedAdminBookId}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </main>
           </div>
         )}
