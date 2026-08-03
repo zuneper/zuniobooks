@@ -6,9 +6,8 @@ export const GalaxyBackground: React.FC = () => {
 
   return (
     <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden bg-[#121212]">
-      {/* Subtle, atmospheric gradient orbs that react to playback state */}
       <div 
-        className={`absolute -top-[20%] -left-[10%] w-[70vw] h-[70vw] rounded-full bg-gradient-to-br from-[#1db954]/5 to-transparent blur-[120px] mix-blend-screen transition-all duration-1000 ease-in-out ${
+        className={`absolute -top-[20%] -left-[10%] w-[70vw] h-[70vw] rounded-full bg-gradient-to-br from-[#facc15]/5 to-transparent blur-[120px] mix-blend-screen transition-all duration-1000 ease-in-out ${
           isPlaying ? 'opacity-100 scale-110' : 'opacity-40 scale-100'
         }`} 
       />
