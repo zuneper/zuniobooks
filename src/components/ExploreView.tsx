@@ -44,7 +44,7 @@ const BookCard: React.FC<{ book: Book; onClick: () => void }> = ({ book, onClick
         />
         {book.isFavorite && (
           <div className="absolute top-2 right-2 p-1.5 rounded-full bg-black/40 backdrop-blur-md">
-            <Heart className="w-4 h-4 text-[#1ed760] fill-[#1ed760]" />
+            <Heart className="w-4 h-4 text-[#facc15] fill-[#facc15]" />
           </div>
         )}
       </div>
