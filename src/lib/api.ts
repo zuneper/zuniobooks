@@ -49,7 +49,6 @@ async function fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise
 }
 
 export const api = {
-  // Auth
   async checkUserExist(identifier: string): Promise<{ exists: boolean; username: string | null; role: 'admin' | 'user' | null }> {
     return fetchApi<{ exists: boolean; username: string | null; role: 'admin' | 'user' | null }>(
       `/api/auth/check-user?identifier=${encodeURIComponent(identifier)}`
@@ -83,7 +82,6 @@ export const api = {
     removeStoredToken();
   },
 
-  // Books
   async getBooks(query = '', genre = ''): Promise<Book[]> {
     const params = new URLSearchParams();
     if (query) params.append('q', query);
@@ -116,11 +114,17 @@ export const api = {
     });
   },
 
-  // Episodes
   async createEpisode(bookId: string, formData: FormData): Promise<Episode> {
     return fetchApi<Episode>(`/api/books/${bookId}/episodes`, {
       method: 'POST',
       body: formData,
+    });
+  },
+
+  async updateEpisode(id: string, data: { title?: string; trackNumber?: number; durationSeconds?: number }): Promise<Episode> {
+    return fetchApi<Episode>(`/api/episodes/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
     });
   },
 
@@ -130,7 +134,6 @@ export const api = {
     });
   },
 
-  // Favorites
   async toggleFavorite(bookId: string): Promise<{ bookId: string; isFavorite: boolean }> {
     return fetchApi<{ bookId: string; isFavorite: boolean }>(`/api/favorites/${bookId}`, {
       method: 'POST',
@@ -141,7 +144,6 @@ export const api = {
     return fetchApi<Book[]>('/api/favorites');
   },
 
-  // User Playback Progress
   async saveProgress(
     episodeId: string,
     bookId: string,
