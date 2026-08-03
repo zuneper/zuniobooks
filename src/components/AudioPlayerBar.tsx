@@ -5,17 +5,24 @@ import {
   Pause, 
   Volume2, 
   VolumeX, 
-  Volume1 
+  Volume1,
+  SkipBack,
+  SkipForward,
+  RotateCcw,
+  RotateCw,
+  Heart,
+  ListMusic
 } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
 
 const formatTime = (time: number) => {
-  if (isNaN(time)) return '0:00';
+  if (isNaN(time) || time < 0) return '0:00';
   const minutes = Math.floor(time / 60);
   const seconds = Math.floor(time % 60);
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 };
 
+// Smart Marquee with a separator to make the loop look clean
 const SmartMarquee: React.FC<{ text: string; className?: string; threshold?: number }> = ({ 
   text, 
   className = '', 
@@ -31,8 +38,8 @@ const SmartMarquee: React.FC<{ text: string; className?: string; threshold?: num
     <div 
       className={`flex overflow-hidden whitespace-nowrap relative w-full ${className}`}
       style={{ 
-        WebkitMaskImage: 'linear-gradient(to right, transparent, black 10%, black 90%, transparent)',
-        maskImage: 'linear-gradient(to right, transparent, black 10%, black 90%, transparent)'
+        maskImage: 'linear-gradient(to right, transparent, black 5%, black 95%, transparent)',
+        WebkitMaskImage: 'linear-gradient(to right, transparent, black 5%, black 95%, transparent)'
       }}
     >
       <motion.div
@@ -41,18 +48,17 @@ const SmartMarquee: React.FC<{ text: string; className?: string; threshold?: num
         transition={{
           repeat: Infinity,
           ease: 'linear',
-          duration: Math.max(10, text.length * 0.25), 
+          duration: Math.max(12, text.length * 0.3), 
         }}
       >
-        <span className="pr-12">{text}</span>
-        <span className="pr-12">{text}</span>
+        <span className="pr-8">{text} <span className="mx-4 text-white/30">•</span></span>
+        <span className="pr-8">{text} <span className="mx-4 text-white/30">•</span></span>
       </motion.div>
     </div>
   );
 };
 
 export const AudioPlayerBar: React.FC = () => {
-  // Cast to any to bypass strict TS errors if some context methods slightly differ
   const audioContext = useAudio() as any; 
   const {
     currentBook,
@@ -63,11 +69,13 @@ export const AudioPlayerBar: React.FC = () => {
     volume,
     togglePlayPause,
     setVolume,
+    seek
   } = audioContext;
 
   const [isDragging, setIsDragging] = useState(false);
   const [dragProgress, setDragProgress] = useState(0);
   const progressBarRef = useRef<HTMLDivElement>(null);
+  const volumeBarRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isDragging) {
@@ -77,6 +85,7 @@ export const AudioPlayerBar: React.FC = () => {
 
   if (!currentBook || !currentEpisode) return null;
 
+  // Handle Main Progress Bar Dragging
   const handleProgressDrag = (e: React.MouseEvent | React.TouchEvent) => {
     if (!progressBarRef.current || !duration) return;
     const rect = progressBarRef.current.getBoundingClientRect();
@@ -87,114 +96,178 @@ export const AudioPlayerBar: React.FC = () => {
 
   const handleProgressDragEnd = () => {
     if (isDragging) {
-      if (audioContext.seek) {
-        audioContext.seek(dragProgress);
-      }
+      if (seek) seek(dragProgress);
       setIsDragging(false);
     }
   };
 
+  // Handle Volume Bar Dragging
+  const handleVolumeDrag = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!volumeBarRef.current || !setVolume) return;
+    const rect = volumeBarRef.current.getBoundingClientRect();
+    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+    const pos = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    setVolume(pos);
+  };
+
+  // Audiobook Skip Functions
+  const skipForward15 = () => {
+    if (seek && duration) seek(Math.min((progress || 0) + 15, duration));
+  };
+  
+  const skipBackward15 = () => {
+    if (seek) seek(Math.max((progress || 0) - 15, 0));
+  };
+
   const VolumeIcon = volume === 0 ? VolumeX : volume < 0.5 ? Volume1 : Volume2;
+  const currentVol = volume ?? 1;
 
   return (
     <motion.div 
       initial={{ y: 100, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-      className="fixed bottom-0 inset-x-0 z-50 bg-[#070415]/95 backdrop-blur-3xl border-t border-white/5 shadow-2xl"
+      className="fixed bottom-0 inset-x-0 z-50 bg-[#181818] border-t border-[#282828] h-[90px] flex items-center select-none"
     >
-      {/* Top Progress Bar */}
-      <div 
-        className="absolute top-0 inset-x-0 h-1.5 bg-white/5 cursor-pointer group"
-        ref={progressBarRef}
-        onMouseDown={(e) => {
-          setIsDragging(true);
-          handleProgressDrag(e);
-        }}
-        onMouseMove={(e) => isDragging && handleProgressDrag(e)}
-        onMouseUp={handleProgressDragEnd}
-        onMouseLeave={handleProgressDragEnd}
-        onTouchStart={(e) => {
-          setIsDragging(true);
-          handleProgressDrag(e);
-        }}
-        onTouchMove={(e) => isDragging && handleProgressDrag(e)}
-        onTouchEnd={handleProgressDragEnd}
-      >
-        <div 
-          className="absolute top-0 left-0 h-full bg-cyan-500 group-hover:bg-cyan-400 transition-colors"
-          style={{ width: `${(dragProgress / (duration || 1)) * 100}%` }}
-        />
-        <div 
-          className="absolute top-1/2 -mt-1.5 w-3 h-3 bg-white rounded-full shadow-[0_0_10px_rgba(255,255,255,0.8)] opacity-0 group-hover:opacity-100 transition-opacity"
-          style={{ left: `calc(${(dragProgress / (duration || 1)) * 100}% - 6px)` }}
-        />
-      </div>
-
-      <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 max-w-[1600px] mx-auto">
+      <div className="flex items-center justify-between w-full px-4 sm:px-6 max-w-[1600px] mx-auto h-full">
         
         {/* Left: Track Info */}
-        <div className="flex items-center gap-3 sm:gap-4 w-1/3 min-w-0 pr-4">
+        <div className="flex items-center gap-3.5 w-[30%] min-w-[180px] pr-4">
           <img 
             src={currentBook.coverUrl} 
             alt="Cover" 
-            className="w-12 h-12 sm:w-14 sm:h-14 rounded-md object-cover shadow-md"
+            className="w-14 h-14 rounded-md object-cover shadow-md bg-[#282828] flex-shrink-0"
           />
-          <div className="flex flex-col min-w-0 w-full overflow-hidden">
+          <div className="flex flex-col min-w-0 w-full overflow-hidden justify-center">
             <SmartMarquee 
               text={currentBook.title} 
-              className="text-sm font-semibold text-white leading-tight"
-              threshold={20}
+              className="text-[14px] font-normal text-white hover:underline cursor-pointer"
+              threshold={25}
             />
             <SmartMarquee 
               text={currentEpisode.title} 
-              className="text-xs text-slate-400 mt-0.5"
-              threshold={25}
+              className="text-[12px] text-[#b3b3b3] hover:text-white hover:underline cursor-pointer mt-0.5 transition-colors"
+              threshold={30}
             />
+          </div>
+          <button className="text-[#b3b3b3] hover:text-white transition-colors ml-2 hidden sm:block">
+            <Heart className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Center: Playback Controls & Progress */}
+        <div className="flex flex-col items-center justify-center w-[40%] max-w-[722px]">
+          
+          {/* Top Row: Buttons */}
+          <div className="flex items-center gap-4 sm:gap-6 mb-2">
+            <button 
+              onClick={skipBackward15}
+              className="text-[#b3b3b3] hover:text-white transition-colors active:scale-95"
+              title="Rewind 15s"
+            >
+              <RotateCcw className="w-4 h-4" />
+            </button>
+            
+            <button className="text-[#4d4d4d] cursor-not-allowed hidden sm:block">
+              <SkipBack className="w-5 h-5 fill-current" />
+            </button>
+            
+            <button 
+              onClick={togglePlayPause}
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-white text-black hover:scale-105 transition-transform active:scale-95"
+            >
+              {isPlaying ? (
+                <Pause className="w-4 h-4 fill-current" />
+              ) : (
+                <Play className="w-4 h-4 fill-current translate-x-[1px]" />
+              )}
+            </button>
+            
+            <button className="text-[#4d4d4d] cursor-not-allowed hidden sm:block">
+              <SkipForward className="w-5 h-5 fill-current" />
+            </button>
+            
+            <button 
+              onClick={skipForward15}
+              className="text-[#b3b3b3] hover:text-white transition-colors active:scale-95"
+              title="Fast Forward 15s"
+            >
+              <RotateCw className="w-4 h-4" />
+            </button>
+          </div>
+          
+          {/* Bottom Row: Progress Bar */}
+          <div className="flex items-center gap-2 w-full max-w-[600px]">
+            <span className="text-[11px] text-[#a7a7a7] font-mono min-w-[40px] text-right">
+              {formatTime(dragProgress)}
+            </span>
+            
+            <div 
+              className="relative flex items-center h-4 flex-1 cursor-pointer group"
+              ref={progressBarRef}
+              onMouseDown={(e) => {
+                setIsDragging(true);
+                handleProgressDrag(e);
+              }}
+              onMouseMove={(e) => isDragging && handleProgressDrag(e)}
+              onMouseUp={handleProgressDragEnd}
+              onMouseLeave={handleProgressDragEnd}
+              onTouchStart={(e) => {
+                setIsDragging(true);
+                handleProgressDrag(e);
+              }}
+              onTouchMove={(e) => isDragging && handleProgressDrag(e)}
+              onTouchEnd={handleProgressDragEnd}
+            >
+              <div className="w-full h-1 bg-[#4d4d4d] rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-white group-hover:bg-[#1ed760] transition-colors"
+                  style={{ width: `${(dragProgress / (duration || 1)) * 100}%` }}
+                />
+              </div>
+              <div 
+                className="absolute w-3 h-3 bg-white rounded-full opacity-0 group-hover:opacity-100 shadow-md transition-opacity -ml-1.5"
+                style={{ left: `${(dragProgress / (duration || 1)) * 100}%` }}
+              />
+            </div>
+            
+            <span className="text-[11px] text-[#a7a7a7] font-mono min-w-[40px]">
+              {formatTime(duration)}
+            </span>
           </div>
         </div>
 
-        {/* Center: Playback Controls */}
-        <div className="flex flex-col items-center justify-center w-1/3">
-          <button 
-            onClick={togglePlayPause}
-            className="p-3 rounded-full bg-white text-black hover:scale-105 transition-transform active:scale-95"
-          >
-            {isPlaying ? (
-              <Pause className="w-5 h-5 fill-current" />
-            ) : (
-              <Play className="w-5 h-5 fill-current translate-x-0.5" />
-            )}
+        {/* Right: Extra Controls & Volume */}
+        <div className="hidden sm:flex items-center justify-end w-[30%] min-w-[180px] gap-4">
+          <button className="text-[#b3b3b3] hover:text-white transition-colors">
+            <ListMusic className="w-[18px] h-[18px]" />
           </button>
           
-          <div className="hidden sm:flex items-center justify-between w-full max-w-xs mt-1.5 px-4">
-            <span className="text-[10px] font-mono text-slate-400">{formatTime(dragProgress)}</span>
-            <span className="text-[10px] font-mono text-slate-400">{formatTime(duration)}</span>
-          </div>
-        </div>
-
-        {/* Right: Volume Control */}
-        <div className="hidden sm:flex items-center justify-end w-1/3 gap-3">
-          <button 
-            onClick={() => setVolume && setVolume(volume === 0 ? 1 : 0)}
-            className="p-2 text-slate-400 hover:text-white transition-colors"
-          >
-            <VolumeIcon className="w-5 h-5" />
-          </button>
-          <div className="w-24 h-1 bg-white/20 rounded-full flex items-center relative group">
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value={volume || 1}
-              onChange={(e) => setVolume && setVolume(parseFloat(e.target.value))}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-            />
+          <div className="flex items-center gap-2 w-[93px] group">
+            <button 
+              onClick={() => setVolume && setVolume(currentVol === 0 ? 1 : 0)}
+              className="text-[#b3b3b3] hover:text-white transition-colors"
+            >
+              <VolumeIcon className="w-[18px] h-[18px]" />
+            </button>
+            
             <div 
-              className="h-full bg-white group-hover:bg-cyan-400 transition-colors pointer-events-none rounded-full"
-              style={{ width: `${(volume || 1) * 100}%` }}
-            />
+              className="relative flex items-center h-4 flex-1 cursor-pointer"
+              ref={volumeBarRef}
+              onMouseDown={handleVolumeDrag}
+              onMouseMove={(e) => e.buttons === 1 && handleVolumeDrag(e)}
+            >
+              <div className="w-full h-1 bg-[#4d4d4d] rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-white group-hover:bg-[#1ed760] transition-colors"
+                  style={{ width: `${currentVol * 100}%` }}
+                />
+              </div>
+              <div 
+                className="absolute w-3 h-3 bg-white rounded-full opacity-0 group-hover:opacity-100 shadow-md transition-opacity -ml-1.5"
+                style={{ left: `${currentVol * 100}%` }}
+              />
+            </div>
           </div>
         </div>
       </div>
