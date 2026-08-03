@@ -157,7 +157,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ user, refreshBooks, pr
       </div>
 
       {statusMessage && (
-        <div className={`flex items-center gap-3 p-4 rounded-md text-sm font-bold ${statusMessage.type === 'success' ? 'bg-[#1ed760]/10 text-[#1ed760] border border-[#1ed760]/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
+  <div className={`flex items-center gap-3 p-4 rounded-md text-sm font-bold ${statusMessage.type === 'success' ? 'bg-[#facc15]/10 text-[#facc15] border border-[#facc15]/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
           {statusMessage.type === 'success' ? <CheckCircle className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
           <span>{statusMessage.msg}</span>
         </div>
