@@ -68,7 +68,6 @@ export const AudioPlayerBar: React.FC = () => {
     setIsFavorite(currentBook?.isFavorite || false);
   }, [currentBook]);
 
-  // Handle both mouse and touch events safely to prevent menus from flickering shut
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent | TouchEvent) => {
       const target = e.target as Node;
@@ -149,12 +148,11 @@ export const AudioPlayerBar: React.FC = () => {
   const VolumeIcon = volume === 0 ? VolumeX : volume < 0.5 ? Volume1 : Volume2;
   const currentVol = volume ?? 1;
 
-  // Alignment prop ensures mobile menus don't render off-screen
   const renderSpeedMenu = (ref: React.RefObject<HTMLDivElement>, alignmentClass: string) => (
     <div className="relative flex items-center" ref={ref}>
       <button
         onClick={(e) => { e.stopPropagation(); setShowSpeedMenu(!showSpeedMenu); setShowSleepMenu(false); }}
-        className={`text-[12px] font-bold px-2 py-1 rounded-md border ${playbackRate !== 1 ? 'border-[#1ed760] text-[#1ed760]' : 'border-[#b3b3b3] text-[#b3b3b3] hover:text-white hover:border-white'} transition-colors`}
+        className={`text-[12px] font-bold px-2 py-1 rounded-md border ${playbackRate !== 1 ? 'border-[#facc15] text-[#facc15]' : 'border-[#b3b3b3] text-[#b3b3b3] hover:text-white hover:border-white'} transition-colors`}
       >
         {playbackRate}x
       </button>
@@ -168,7 +166,7 @@ export const AudioPlayerBar: React.FC = () => {
               <button
                 key={speed}
                 onClick={(e) => { e.stopPropagation(); setPlaybackRate(speed); setShowSpeedMenu(false); }}
-                className={`w-full text-left px-3 py-1.5 text-xs rounded-md transition-colors ${playbackRate === speed ? 'text-[#1ed760] font-bold bg-[#3e3e3e]' : 'text-[#b3b3b3] hover:bg-[#3e3e3e] hover:text-white'}`}
+                className={`w-full text-left px-3 py-1.5 text-xs rounded-md transition-colors ${playbackRate === speed ? 'text-[#facc15] font-bold bg-[#3e3e3e]' : 'text-[#b3b3b3] hover:bg-[#3e3e3e] hover:text-white'}`}
               >
                 {speed}x
               </button>
@@ -183,7 +181,7 @@ export const AudioPlayerBar: React.FC = () => {
     <div className="relative flex items-center" ref={ref}>
       <button
         onClick={(e) => { e.stopPropagation(); setShowSleepMenu(!showSleepMenu); setShowSpeedMenu(false); }}
-        className={`flex items-center gap-1.5 transition-colors ${sleepTimer ? 'text-[#1ed760]' : 'text-[#b3b3b3] hover:text-white'}`}
+        className={`flex items-center gap-1.5 transition-colors ${sleepTimer ? 'text-[#facc15]' : 'text-[#b3b3b3] hover:text-white'}`}
       >
         <Moon className="w-5 h-5" />
         {sleepTimer && <span className="text-xs font-mono bg-[#3e3e3e] px-1.5 py-0.5 rounded">{formatTime(sleepTimer)}</span>}
@@ -233,7 +231,7 @@ export const AudioPlayerBar: React.FC = () => {
             </div>
             <button 
               onClick={handleToggleFavorite}
-              className={`${isFavorite ? 'text-[#1ed760]' : 'text-[#b3b3b3] hover:text-white'} transition-colors ml-2 active:scale-95 flex-shrink-0`}
+              className={`${isFavorite ? 'text-[#facc15]' : 'text-[#b3b3b3] hover:text-white'} transition-colors ml-2 active:scale-95 flex-shrink-0`}
             >
               <Heart className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />
             </button>
@@ -261,7 +259,7 @@ export const AudioPlayerBar: React.FC = () => {
                 onMouseLeave={handleProgressDragEnd}
               >
                 <div className="w-full h-1 bg-[#4d4d4d] rounded-full overflow-hidden">
-                  <div className="h-full bg-white group-hover:bg-[#1ed760] transition-colors" style={{ width: `${(dragProgress / (duration || 1)) * 100}%` }} />
+                  <div className="h-full bg-white group-hover:bg-[#facc15] transition-colors" style={{ width: `${(dragProgress / (duration || 1)) * 100}%` }} />
                 </div>
                 <div className="absolute w-3 h-3 bg-white rounded-full opacity-0 group-hover:opacity-100 shadow-md transition-opacity -ml-1.5" style={{ left: `${(dragProgress / (duration || 1)) * 100}%` }} />
               </div>
@@ -279,7 +277,7 @@ export const AudioPlayerBar: React.FC = () => {
               </button>
               <div className="relative flex items-center h-4 flex-1 cursor-pointer" ref={volumeBarRef} onMouseDown={handleVolumeDrag} onMouseMove={(e) => e.buttons === 1 && handleVolumeDrag(e)}>
                 <div className="w-full h-1 bg-[#4d4d4d] rounded-full overflow-hidden">
-                  <div className="h-full bg-white group-hover:bg-[#1ed760] transition-colors" style={{ width: `${currentVol * 100}%` }} />
+                  <div className="h-full bg-white group-hover:bg-[#facc15] transition-colors" style={{ width: `${currentVol * 100}%` }} />
                 </div>
                 <div className="absolute w-3 h-3 bg-white rounded-full opacity-0 group-hover:opacity-100 shadow-md transition-opacity -ml-1.5" style={{ left: `${currentVol * 100}%` }} />
               </div>
@@ -304,7 +302,7 @@ export const AudioPlayerBar: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center gap-3 pl-3">
-              <button onClick={(e) => { e.stopPropagation(); handleToggleFavorite(); }} className={`${isFavorite ? 'text-[#1ed760]' : 'text-white'} p-2`}>
+              <button onClick={(e) => { e.stopPropagation(); handleToggleFavorite(); }} className={`${isFavorite ? 'text-[#facc15]' : 'text-white'} p-2`}>
                 <Heart className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
               </button>
               <button onClick={(e) => { e.stopPropagation(); togglePlayPause(); }} className="p-2 text-white">
@@ -343,7 +341,7 @@ export const AudioPlayerBar: React.FC = () => {
                 <SmartMarquee text={currentBook.title} className="text-xl font-bold leading-relaxed mb-1" threshold={20} />
                 <SmartMarquee text={currentEpisode.title} className="text-sm text-[#b3b3b3] leading-relaxed" threshold={25} />
               </div>
-              <button onClick={handleToggleFavorite} className={`${isFavorite ? 'text-[#1ed760]' : 'text-white'}`}>
+              <button onClick={handleToggleFavorite} className={`${isFavorite ? 'text-[#facc15]' : 'text-white'}`}>
                 <Heart className={`w-7 h-7 ${isFavorite ? 'fill-current' : ''}`} />
               </button>
             </div>
@@ -378,7 +376,6 @@ export const AudioPlayerBar: React.FC = () => {
             </div>
 
             <div className="flex items-center justify-between pb-6">
-              {/* Note the 'left-0' aligns the dropdown correctly on the mobile view */}
               {renderSpeedMenu(mobileSpeedRef, 'left-0')}
               {renderSleepMenu(mobileSleepRef, 'right-0')}
             </div>
