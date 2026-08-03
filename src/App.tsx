@@ -18,26 +18,23 @@ export function AppContent() {
   const [activeView, setActiveView] = useState<string>('explore');
   const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
   const [preSelectedAdminBookId, setPreSelectedAdminBookId] = useState<string | null>(null);
-
   const [searchQuery, setSearchQuery] = useState<string>('');
-
   const [books, setBooks] = useState<Book[]>([]);
   const [loadingBooks, setLoadingBooks] = useState<boolean>(true);
-
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  
+  // Mobile menu state
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
 
-  // Load user on start if token exists
   useEffect(() => {
     api
       .getMe()
       .then((u) => setUser(u))
       .catch(() => {
-        // Token invalid or expired
         api.logout();
       });
   }, []);
 
-  // Fetch books catalog
   const refreshBooks = async () => {
     try {
       setLoadingBooks(true);
@@ -82,11 +79,9 @@ export function AppContent() {
 
   return (
     <div className="relative min-h-screen text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-slate-950 overflow-x-hidden">
-      {/* Dynamic Starfield Background */}
       <GalaxyBackground />
 
       <div className="relative z-10 flex flex-col min-h-screen">
-        {/* Top Sticky Header */}
         <Header
           user={user}
           searchQuery={searchQuery}
@@ -100,9 +95,9 @@ export function AppContent() {
             setSearchQuery('');
           }}
           activeView={activeView}
+          onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         />
 
-        {/* Main Body Layout */}
         {!user ? (
           <GuestAuthView
             onSuccess={(loggedUser) => {
@@ -111,8 +106,7 @@ export function AppContent() {
             }}
           />
         ) : (
-          <div className="flex-1 flex max-w-[1600px] w-full mx-auto">
-            {/* Left Sidebar */}
+          <div className="flex-1 flex max-w-[1600px] w-full mx-auto relative">
             <Sidebar
               activeView={activeView}
               setActiveView={(view) => {
@@ -120,9 +114,10 @@ export function AppContent() {
                 if (view !== 'detail') setSelectedBookId(null);
               }}
               user={user}
+              isOpen={isMobileMenuOpen}
+              onClose={() => setIsMobileMenuOpen(false)}
             />
 
-            {/* Center Main Scroll View */}
             <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0 overflow-y-auto">
               {activeView === 'explore' && (
                 <ExploreView
@@ -175,10 +170,8 @@ export function AppContent() {
           </div>
         )}
 
-        {/* Persistent Bottom Audio Player Bar */}
         {user && <AudioPlayerBar />}
 
-        {/* Authentication Modal */}
         <AuthModal
           isOpen={isAuthModalOpen}
           onClose={() => setIsAuthModalOpen(false)}
