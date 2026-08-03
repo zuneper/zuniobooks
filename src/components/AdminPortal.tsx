@@ -157,7 +157,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ user, refreshBooks, pr
       </div>
 
       {statusMessage && (
-  <div className={`flex items-center gap-3 p-4 rounded-md text-sm font-bold ${statusMessage.type === 'success' ? 'bg-[#facc15]/10 text-[#facc15] border border-[#facc15]/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
+        <div className={`flex items-center gap-3 p-4 rounded-md text-sm font-bold ${statusMessage.type === 'success' ? 'bg-[#facc15]/10 text-[#facc15] border border-[#facc15]/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
           {statusMessage.type === 'success' ? <CheckCircle className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
           <span>{statusMessage.msg}</span>
         </div>
@@ -213,7 +213,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ user, refreshBooks, pr
           <div>
             <label className={labelClass}>Audio File *</label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="relative border-2 border-dashed border-[#1ed760]/30 hover:border-[#1ed760] rounded-md p-6 text-center cursor-pointer transition-colors bg-[#181818]">
+              <div className="relative border-2 border-dashed border-[#facc15]/30 hover:border-[#facc15] rounded-md p-6 text-center cursor-pointer transition-colors bg-[#181818]">
                 <input type="file" accept="audio/*" onChange={e => {
                   const file = e.target.files?.[0] || null; setAudioFile(file);
                   if (file) {
@@ -221,14 +221,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ user, refreshBooks, pr
                     audio.addEventListener('loadedmetadata', () => { if (audio.duration && !isNaN(audio.duration)) setEpisodeDurationInput(Math.round(audio.duration).toString()); URL.revokeObjectURL(objectUrl); });
                   }
                 }} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-                <Music className="w-6 h-6 text-[#1ed760] mx-auto mb-2" />
+                <Music className="w-6 h-6 text-[#facc15] mx-auto mb-2" />
                 <span className="text-xs font-bold text-white">{audioFile ? audioFile.name : 'Upload Audio'}</span>
               </div>
               <input type="url" value={audioUrlInput} onChange={e => setAudioUrlInput(e.target.value)} placeholder="Or paste direct audio URL" className={inputClass} />
             </div>
           </div>
           
-          <button type="submit" disabled={loading} className="w-fit px-8 py-3 rounded-full bg-[#1ed760] text-black font-bold text-sm hover:scale-105 active:scale-95 transition-transform disabled:opacity-50">
+          <button type="submit" disabled={loading} className="w-fit px-8 py-3 rounded-full bg-[#facc15] text-black font-bold text-sm hover:scale-105 active:scale-95 transition-transform disabled:opacity-50">
             {loading ? 'Uploading...' : 'Upload Chapter'}
           </button>
         </form>
