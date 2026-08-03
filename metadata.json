@@ -1,0 +1,6 @@
+{
+  "name": "Zuniobooks",
+  "description": "A galaxy-themed audiobook hosting and streaming platform featuring persistent audio controls, MediaSession background playback, user preferences, and admin content management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
