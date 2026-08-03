@@ -11,8 +11,8 @@ import { initDatabase, dbService, UserRecord } from './src/server/db.js';
 const JWT_SECRET = process.env.JWT_SECRET || 'zuniobooks_galaxy_secret_key_2026';
 const PORT = 3000;
 
-// Setup upload storage
-const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
+// Respect Railway Persistent Volume variables
+const UPLOADS_DIR = process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads');
 const COVERS_DIR = path.join(UPLOADS_DIR, 'covers');
 const AUDIO_DIR = path.join(UPLOADS_DIR, 'audio');
 
@@ -92,9 +92,10 @@ async function startServer() {
   app.use(express.urlencoded({ extended: true }));
   app.use(authenticateToken);
 
-  // Serve uploaded files with range request support for audio scrubbing
+  // Serve uploaded cover images
   app.use('/uploads/covers', express.static(COVERS_DIR));
 
+  // Audio Streaming with Dynamic Content-Type for AAC and all audio files
   app.get('/uploads/audio/:filename', (req, res) => {
     const filePath = path.join(AUDIO_DIR, req.params.filename);
     if (!fs.existsSync(filePath)) {
@@ -104,6 +105,18 @@ async function startServer() {
     const stat = fs.statSync(filePath);
     const fileSize = stat.size;
     const range = req.headers.range;
+
+    const ext = path.extname(filePath).toLowerCase();
+    const mimeTypes: Record<string, string> = {
+      '.mp3': 'audio/mpeg',
+      '.m4a': 'audio/mp4',
+      '.aac': 'audio/aac',
+      '.wav': 'audio/wav',
+      '.ogg': 'audio/ogg',
+      '.flac': 'audio/flac',
+      '.webm': 'audio/webm',
+    };
+    const contentType = mimeTypes[ext] || 'application/octet-stream';
 
     if (range) {
       const parts = range.replace(/bytes=/, '').split('-');
@@ -115,14 +128,14 @@ async function startServer() {
         'Content-Range': `bytes ${start}-${end}/${fileSize}`,
         'Accept-Ranges': 'bytes',
         'Content-Length': chunksize,
-        'Content-Type': 'audio/mpeg',
+        'Content-Type': contentType,
       };
       res.writeHead(206, head);
       file.pipe(res);
     } else {
       const head = {
         'Content-Length': fileSize,
-        'Content-Type': 'audio/mpeg',
+        'Content-Type': contentType,
       };
       res.writeHead(200, head);
       fs.createReadStream(filePath).pipe(res);
@@ -130,7 +143,6 @@ async function startServer() {
   });
 
   // API Routes
-  // 1. Authentication
   app.get('/api/auth/check-user', (req: Request, res: Response) => {
     const identifier = ((req.query.identifier as string) || '').trim().toLowerCase();
     if (!identifier) {
@@ -216,7 +228,6 @@ async function startServer() {
     res.json({ user: userWithoutPassword });
   });
 
-  // 2. Books API
   app.get('/api/books', (req: AuthRequest, res: Response) => {
     const q = ((req.query.q as string) || '').toLowerCase().trim();
     const genre = ((req.query.genre as string) || '').toLowerCase().trim();
@@ -273,7 +284,6 @@ async function startServer() {
     });
   });
 
-  // Create Book (Admin)
   app.post('/api/books', requireAdmin, upload.single('cover'), (req: AuthRequest, res: Response) => {
     try {
       const { title, author, narrator, genre, description, coverUrl: customCoverUrl } = req.body;
@@ -305,7 +315,6 @@ async function startServer() {
     }
   });
 
-  // Update Book (Admin)
   app.put('/api/books/:id', requireAdmin, upload.single('cover'), (req: AuthRequest, res: Response) => {
     try {
       const { title, author, narrator, genre, description, coverUrl: customCoverUrl } = req.body;
@@ -332,15 +341,12 @@ async function startServer() {
     }
   });
 
-  // Delete Book (Admin)
   app.delete('/api/books/:id', requireAdmin, (req: AuthRequest, res: Response) => {
     const success = dbService.deleteBook(req.params.id);
     if (!success) return res.status(404).json({ error: 'Book not found' });
     res.json({ message: 'Book deleted successfully' });
   });
 
-  // 3. Episodes API
-  // Upload Episode (Admin)
   app.post('/api/books/:bookId/episodes', requireAdmin, upload.single('audio'), (req: AuthRequest, res: Response) => {
     try {
       const { bookId } = req.params;
@@ -377,7 +383,6 @@ async function startServer() {
     }
   });
 
-  // Update Episode (Admin)
   app.put('/api/episodes/:id', requireAdmin, (req: AuthRequest, res: Response) => {
     const { title, trackNumber, durationSeconds } = req.body;
     const updates: any = {};
@@ -390,14 +395,12 @@ async function startServer() {
     res.json(updated);
   });
 
-  // Delete Episode (Admin)
   app.delete('/api/episodes/:id', requireAdmin, (req: AuthRequest, res: Response) => {
     const success = dbService.deleteEpisode(req.params.id);
     if (!success) return res.status(404).json({ error: 'Episode not found' });
     res.json({ message: 'Episode deleted successfully' });
   });
 
-  // 4. Favorites API
   app.post('/api/favorites/:bookId', requireAuth, (req: AuthRequest, res: Response) => {
     if (!req.user) return res.status(401).json({ error: 'Auth required' });
     const isFavorite = dbService.toggleFavorite(req.user.id, req.params.bookId);
@@ -422,7 +425,6 @@ async function startServer() {
     res.json(books);
   });
 
-  // 5. User Playback Progress API
   app.post('/api/progress', requireAuth, (req: AuthRequest, res: Response) => {
     if (!req.user) return res.status(401).json({ error: 'Auth required' });
     const { episodeId, bookId, positionSeconds, durationSeconds, completed } = req.body;
