@@ -214,15 +214,24 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ user, refreshBooks, pr
             <label className={labelClass}>Audio File *</label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="relative border-2 border-dashed border-[#facc15]/30 hover:border-[#facc15] rounded-md p-6 text-center cursor-pointer transition-colors bg-[#181818]">
-                <input type="file" accept="audio/*" onChange={e => {
+                {/* Now explicitly accepts mp3, mp4, m4a, and aac formats */}
+                <input type="file" accept="audio/*,video/mp4,.mp3,.mp4,.m4a,.aac" onChange={e => {
                   const file = e.target.files?.[0] || null; setAudioFile(file);
                   if (file) {
-                    const objectUrl = URL.createObjectURL(file); const audio = new Audio(objectUrl);
-                    audio.addEventListener('loadedmetadata', () => { if (audio.duration && !isNaN(audio.duration)) setEpisodeDurationInput(Math.round(audio.duration).toString()); URL.revokeObjectURL(objectUrl); });
+                    const objectUrl = URL.createObjectURL(file); 
+                    // Use a video element to safely extract durations for all formats (including mp4/m4a)
+                    const media = document.createElement('video');
+                    media.src = objectUrl;
+                    media.addEventListener('loadedmetadata', () => { 
+                      if (media.duration && !isNaN(media.duration)) {
+                        setEpisodeDurationInput(Math.round(media.duration).toString()); 
+                      }
+                      URL.revokeObjectURL(objectUrl); 
+                    });
                   }
                 }} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
                 <Music className="w-6 h-6 text-[#facc15] mx-auto mb-2" />
-                <span className="text-xs font-bold text-white">{audioFile ? audioFile.name : 'Upload Audio'}</span>
+                <span className="text-xs font-bold text-white">{audioFile ? audioFile.name : 'Upload MP3, MP4, AAC'}</span>
               </div>
               <input type="url" value={audioUrlInput} onChange={e => setAudioUrlInput(e.target.value)} placeholder="Or paste direct audio URL" className={inputClass} />
             </div>
