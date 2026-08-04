@@ -28,24 +28,31 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [volume, setVolumeState] = useState(1);
   const [playbackRate, setPlaybackRateState] = useState(1);
 
-  // We now use a ref attached to a physical <audio> element in the DOM
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lastSavedProgress = useRef<number>(0);
 
-  // Attach standard event listeners
+  // Core event listeners
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
     const updateTime = () => setProgress(audio.currentTime);
     const updateDuration = () => setDuration(audio.duration);
+    
+    // Fallback sync with actual playback state
+    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => setIsPlaying(false);
 
     audio.addEventListener('timeupdate', updateTime);
     audio.addEventListener('loadedmetadata', updateDuration);
+    audio.addEventListener('play', handlePlay);
+    audio.addEventListener('pause', handlePause);
 
     return () => {
       audio.removeEventListener('timeupdate', updateTime);
       audio.removeEventListener('loadedmetadata', updateDuration);
+      audio.removeEventListener('play', handlePlay);
+      audio.removeEventListener('pause', handlePause);
     };
   }, []);
 
@@ -59,11 +66,49 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       audioRef.current.src = fullUrl;
       audioRef.current.volume = volume;
       audioRef.current.playbackRate = playbackRate; 
+      
+      // EXPLICIT LOAD: Forces the mobile browser to re-evaluate the media stream
+      audioRef.current.load();
       audioRef.current.play().then(() => setIsPlaying(true)).catch(console.error);
     }
   }, [volume, playbackRate]);
 
-  // Bind the Auto-Play Next logic
+  // 🚀 OS INTEGRATION: Hardware Media Session API
+  // This forces Android into Loudspeaker mode (STREAM_MUSIC) and creates lock-screen controls
+  useEffect(() => {
+    if ('mediaSession' in navigator && currentBook && currentEpisode) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: currentEpisode.title,
+        artist: currentBook.author,
+        album: currentBook.title,
+        artwork: [
+          { src: currentBook.coverUrl, sizes: '96x96', type: 'image/jpeg' },
+          { src: currentBook.coverUrl, sizes: '256x256', type: 'image/jpeg' },
+          { src: currentBook.coverUrl, sizes: '512x512', type: 'image/jpeg' }
+        ]
+      });
+
+      navigator.mediaSession.setActionHandler('play', () => {
+        audioRef.current?.play().then(() => setIsPlaying(true)).catch(console.error);
+      });
+      navigator.mediaSession.setActionHandler('pause', () => {
+        audioRef.current?.pause();
+        setIsPlaying(false);
+      });
+      navigator.mediaSession.setActionHandler('seekbackward', () => {
+        if (audioRef.current) {
+          audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime - 15);
+        }
+      });
+      navigator.mediaSession.setActionHandler('seekforward', () => {
+        if (audioRef.current) {
+          audioRef.current.currentTime = Math.min(audioRef.current.duration || 0, audioRef.current.currentTime + 15);
+        }
+      });
+    }
+  }, [currentBook, currentEpisode]);
+
+  // Auto-Play Next Chapter
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -82,7 +127,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
   }, [currentBook, currentEpisode, playEpisode]);
 
-  // Auto-save progress to database
+  // Auto-save progress
   useEffect(() => {
     const interval = setInterval(() => {
       if (isPlaying && currentEpisode && currentBook && audioRef.current) {
@@ -100,7 +145,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!audioRef.current || !currentEpisode) return;
     if (isPlaying) {
       audioRef.current.pause();
-      setIsPlaying(false);
     } else {
       audioRef.current.play().then(() => setIsPlaying(true)).catch(console.error);
     }
@@ -129,8 +173,17 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       playEpisode, togglePlayPause, seek, setVolume, setPlaybackRate
     }}>
       {children}
-      {/* Physical audio element ensures OS routes audio to loudspeaker */}
-      <audio ref={audioRef} preload="metadata" style={{ display: 'none' }} />
+      {/* 
+        CRITICAL FIX FOR ANDROID EARPIECE BUG:
+        1. playsInline forces media session instead of communication session.
+        2. opacity: 0.01 instead of display: none ensures hardware acceleration engine recognizes it.
+      */}
+      <audio 
+        ref={audioRef} 
+        preload="metadata" 
+        playsInline
+        style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0.01, pointerEvents: 'none', zIndex: -1 }} 
+      />
     </AudioContext.Provider>
   );
 };
