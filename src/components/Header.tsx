@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, User as UserIcon, LogOut, Menu, X, Library } from 'lucide-react';
+import { Search, User as UserIcon, LogOut, Menu, X, Library, Shield } from 'lucide-react';
 import { User } from '../types';
 
 interface HeaderProps {
@@ -10,6 +10,7 @@ interface HeaderProps {
   onLogout: () => void;
   onNavigateHome: () => void;
   onToggleMobileMenu: () => void;
+  onNavigateAdmin: () => void; // Restored the missing Admin navigation prop!
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -20,6 +21,7 @@ export const Header: React.FC<HeaderProps> = ({
   onLogout,
   onNavigateHome,
   onToggleMobileMenu,
+  onNavigateAdmin,
 }) => {
   const [showMobileSearch, setShowMobileSearch] = useState(false);
   const [headerOpacity, setHeaderOpacity] = useState(0);
@@ -94,6 +96,18 @@ export const Header: React.FC<HeaderProps> = ({
 
           {user ? (
             <div className="flex items-center gap-2">
+              
+              {/* ADMIN SHIELD BUTTON - Only shows if user is an admin */}
+              {user.role === 'admin' && (
+                <button 
+                  onClick={onNavigateAdmin} 
+                  title="Admin Portal" 
+                  className="p-2 text-[#facc15] hover:text-white hover:bg-[#282828] rounded-full transition-colors mr-1"
+                >
+                  <Shield className="w-5 h-5" />
+                </button>
+              )}
+
               <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/50 hover:bg-[#282828] cursor-pointer transition-colors border border-transparent hover:border-[#3e3e3e]">
                 <div className="w-6 h-6 rounded-full bg-[#3e3e3e] flex items-center justify-center overflow-hidden">
                   <UserIcon className="w-3.5 h-3.5 text-[#b3b3b3]" />
