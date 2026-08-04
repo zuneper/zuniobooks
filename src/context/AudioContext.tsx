@@ -28,45 +28,29 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [volume, setVolumeState] = useState(1);
   const [playbackRate, setPlaybackRateState] = useState(1);
 
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  // Using HTMLVideoElement to force Android into Loudspeaker mode
+  const audioRef = useRef<HTMLVideoElement | null>(null);
   const lastSavedProgress = useRef<number>(0);
 
-  // Web Audio API Refs (The Spotify Engine)
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
-
-  // Core event listeners and Web Audio Initialization
   useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
+    const mediaNode = audioRef.current;
+    if (!mediaNode) return;
 
-    // 1. Initialize Web Audio API to FORCE OS Loudspeaker routing
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-    if (AudioContextClass && !audioCtxRef.current) {
-      try {
-        audioCtxRef.current = new AudioContextClass();
-        sourceNodeRef.current = audioCtxRef.current.createMediaElementSource(audio);
-        sourceNodeRef.current.connect(audioCtxRef.current.destination);
-      } catch (e) {
-        console.warn("Web Audio API routing bypassed:", e);
-      }
-    }
-
-    const updateTime = () => setProgress(audio.currentTime);
-    const updateDuration = () => setDuration(audio.duration);
+    const updateTime = () => setProgress(mediaNode.currentTime);
+    const updateDuration = () => setDuration(mediaNode.duration);
     const handlePlay = () => setIsPlaying(true);
     const handlePause = () => setIsPlaying(false);
 
-    audio.addEventListener('timeupdate', updateTime);
-    audio.addEventListener('loadedmetadata', updateDuration);
-    audio.addEventListener('play', handlePlay);
-    audio.addEventListener('pause', handlePause);
+    mediaNode.addEventListener('timeupdate', updateTime);
+    mediaNode.addEventListener('loadedmetadata', updateDuration);
+    mediaNode.addEventListener('play', handlePlay);
+    mediaNode.addEventListener('pause', handlePause);
 
     return () => {
-      audio.removeEventListener('timeupdate', updateTime);
-      audio.removeEventListener('loadedmetadata', updateDuration);
-      audio.removeEventListener('play', handlePlay);
-      audio.removeEventListener('pause', handlePause);
+      mediaNode.removeEventListener('timeupdate', updateTime);
+      mediaNode.removeEventListener('loadedmetadata', updateDuration);
+      mediaNode.removeEventListener('play', handlePlay);
+      mediaNode.removeEventListener('pause', handlePause);
     };
   }, []);
 
@@ -74,15 +58,16 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setCurrentBook(book);
     setCurrentEpisode(episode);
     
-    // Web Audio API requires "unlocking" the context on user interaction
-    if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
-      audioCtxRef.current.resume();
-    }
-
     if (audioRef.current) {
-      const fullUrl = episode.audioUrl.startsWith('http')
+      let fullUrl = episode.audioUrl.startsWith('http')
         ? episode.audioUrl
         : `${window.location.origin}${episode.audioUrl}`;
+        
+      // HIDE EXTENSION FROM ANDROID HEURISTIC:
+      // By appending this query parameter, the phone's hardware doesn't see ".aac" at the end of the string.
+      // It sees "media", forcing it to route to the main loudspeaker.
+      fullUrl = fullUrl + (fullUrl.includes('?') ? '&' : '?') + 'stream=media';
+
       audioRef.current.src = fullUrl;
       audioRef.current.volume = volume;
       audioRef.current.playbackRate = playbackRate; 
@@ -92,7 +77,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [volume, playbackRate]);
 
-  // OS INTEGRATION: Hardware Media Session API (Lock screen controls)
   useEffect(() => {
     if ('mediaSession' in navigator && currentBook && currentEpisode) {
       navigator.mediaSession.metadata = new MediaMetadata({
@@ -112,12 +96,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [currentBook, currentEpisode]);
 
-  // Auto-Play Next Chapter
   useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
+    const mediaNode = audioRef.current;
+    if (!mediaNode) return;
 
-    audio.onended = () => {
+    mediaNode.onended = () => {
       setIsPlaying(false);
       if (currentBook && currentEpisode && currentBook.episodes) {
         const currentIndex = currentBook.episodes.findIndex(e => e.id === currentEpisode.id);
@@ -129,7 +112,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
   }, [currentBook, currentEpisode, playEpisode]);
 
-  // Auto-save progress
   useEffect(() => {
     const interval = setInterval(() => {
       if (isPlaying && currentEpisode && currentBook && audioRef.current) {
@@ -145,11 +127,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const togglePlayPause = () => {
     if (!audioRef.current || !currentEpisode) return;
-    
-    // Unlock context
-    if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
-      audioCtxRef.current.resume();
-    }
 
     if (isPlaying) {
       audioRef.current.pause();
@@ -181,16 +158,20 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       playEpisode, togglePlayPause, seek, setVolume, setPlaybackRate
     }}>
       {children}
-      {/* 
-        crossOrigin="anonymous" is heavily required by the Web Audio API to prevent
-        the browser from muting the audio for security reasons.
-      */}
-      <audio 
+      <video 
         ref={audioRef} 
-        preload="metadata" 
-        playsInline
-        crossOrigin="anonymous" 
-        style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0.01, pointerEvents: 'none', zIndex: -1 }} 
+        playsInline 
+        preload="metadata"
+        style={{ 
+          position: 'fixed', 
+          bottom: '-10px', 
+          right: '-10px', 
+          width: '1px', 
+          height: '1px', 
+          opacity: 0.01, 
+          pointerEvents: 'none', 
+          zIndex: -9999 
+        }} 
       />
     </AudioContext.Provider>
   );
