@@ -31,15 +31,29 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lastSavedProgress = useRef<number>(0);
 
-  // Core event listeners
+  // Web Audio API Refs (The Spotify Engine)
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
+
+  // Core event listeners and Web Audio Initialization
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
+    // 1. Initialize Web Audio API to FORCE OS Loudspeaker routing
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (AudioContextClass && !audioCtxRef.current) {
+      try {
+        audioCtxRef.current = new AudioContextClass();
+        sourceNodeRef.current = audioCtxRef.current.createMediaElementSource(audio);
+        sourceNodeRef.current.connect(audioCtxRef.current.destination);
+      } catch (e) {
+        console.warn("Web Audio API routing bypassed:", e);
+      }
+    }
+
     const updateTime = () => setProgress(audio.currentTime);
     const updateDuration = () => setDuration(audio.duration);
-    
-    // Fallback sync with actual playback state
     const handlePlay = () => setIsPlaying(true);
     const handlePause = () => setIsPlaying(false);
 
@@ -59,6 +73,12 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const playEpisode = useCallback((book: Book, episode: Episode) => {
     setCurrentBook(book);
     setCurrentEpisode(episode);
+    
+    // Web Audio API requires "unlocking" the context on user interaction
+    if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+      audioCtxRef.current.resume();
+    }
+
     if (audioRef.current) {
       const fullUrl = episode.audioUrl.startsWith('http')
         ? episode.audioUrl
@@ -67,14 +87,12 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       audioRef.current.volume = volume;
       audioRef.current.playbackRate = playbackRate; 
       
-      // EXPLICIT LOAD: Forces the mobile browser to re-evaluate the media stream
       audioRef.current.load();
       audioRef.current.play().then(() => setIsPlaying(true)).catch(console.error);
     }
   }, [volume, playbackRate]);
 
-  // 🚀 OS INTEGRATION: Hardware Media Session API
-  // This forces Android into Loudspeaker mode (STREAM_MUSIC) and creates lock-screen controls
+  // OS INTEGRATION: Hardware Media Session API (Lock screen controls)
   useEffect(() => {
     if ('mediaSession' in navigator && currentBook && currentEpisode) {
       navigator.mediaSession.metadata = new MediaMetadata({
@@ -83,28 +101,14 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         album: currentBook.title,
         artwork: [
           { src: currentBook.coverUrl, sizes: '96x96', type: 'image/jpeg' },
-          { src: currentBook.coverUrl, sizes: '256x256', type: 'image/jpeg' },
           { src: currentBook.coverUrl, sizes: '512x512', type: 'image/jpeg' }
         ]
       });
 
-      navigator.mediaSession.setActionHandler('play', () => {
-        audioRef.current?.play().then(() => setIsPlaying(true)).catch(console.error);
-      });
-      navigator.mediaSession.setActionHandler('pause', () => {
-        audioRef.current?.pause();
-        setIsPlaying(false);
-      });
-      navigator.mediaSession.setActionHandler('seekbackward', () => {
-        if (audioRef.current) {
-          audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime - 15);
-        }
-      });
-      navigator.mediaSession.setActionHandler('seekforward', () => {
-        if (audioRef.current) {
-          audioRef.current.currentTime = Math.min(audioRef.current.duration || 0, audioRef.current.currentTime + 15);
-        }
-      });
+      navigator.mediaSession.setActionHandler('play', () => togglePlayPause());
+      navigator.mediaSession.setActionHandler('pause', () => togglePlayPause());
+      navigator.mediaSession.setActionHandler('seekbackward', () => seek(Math.max(0, (audioRef.current?.currentTime || 0) - 15)));
+      navigator.mediaSession.setActionHandler('seekforward', () => seek(Math.min((audioRef.current?.duration || 0), (audioRef.current?.currentTime || 0) + 15)));
     }
   }, [currentBook, currentEpisode]);
 
@@ -119,9 +123,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const currentIndex = currentBook.episodes.findIndex(e => e.id === currentEpisode.id);
         if (currentIndex !== -1 && currentIndex < currentBook.episodes.length - 1) {
           const nextEpisode = currentBook.episodes[currentIndex + 1];
-          setTimeout(() => {
-            playEpisode(currentBook, nextEpisode);
-          }, 500);
+          setTimeout(() => { playEpisode(currentBook, nextEpisode); }, 500);
         }
       }
     };
@@ -143,6 +145,12 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const togglePlayPause = () => {
     if (!audioRef.current || !currentEpisode) return;
+    
+    // Unlock context
+    if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+      audioCtxRef.current.resume();
+    }
+
     if (isPlaying) {
       audioRef.current.pause();
     } else {
@@ -174,14 +182,14 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }}>
       {children}
       {/* 
-        CRITICAL FIX FOR ANDROID EARPIECE BUG:
-        1. playsInline forces media session instead of communication session.
-        2. opacity: 0.01 instead of display: none ensures hardware acceleration engine recognizes it.
+        crossOrigin="anonymous" is heavily required by the Web Audio API to prevent
+        the browser from muting the audio for security reasons.
       */}
       <audio 
         ref={audioRef} 
         preload="metadata" 
         playsInline
+        crossOrigin="anonymous" 
         style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0.01, pointerEvents: 'none', zIndex: -1 }} 
       />
     </AudioContext.Provider>
