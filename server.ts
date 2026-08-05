@@ -9,8 +9,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// If you are using a Railway Volume, change this to your mount path (e.g., '/data/db.json')
-const DB_FILE = process.env.DB_PATH || path.join(__dirname, 'db.json');
+// Safely targets the root folder regardless of the dist/ build structure
+const DB_FILE = process.env.DB_PATH || path.join(process.cwd(), 'db.json');
 
 // --- DATABASE HELPERS ---
 const readDB = () => {
@@ -23,10 +23,10 @@ const readDB = () => {
 const writeDB = (data: any) => fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
 
 // --- THE FIX 1: ADVANCED STORAGE ---
+// Preserves file extensions (.aac, .mp3, .mp4) so the OS recognizes the audio format
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    // If using a Railway volume, change '__dirname' to your volume path (e.g., '/data/uploads')
-    const uploadDir = path.join(__dirname, 'uploads');
+    const uploadDir = path.join(process.cwd(), 'uploads');
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
@@ -41,7 +41,8 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // --- THE FIX 2: EXPLICIT MIME TYPES & CHUNKED STREAMING ---
-app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+// Forces the Android hardware to stream via the loudspeaker
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads'), {
   acceptRanges: true,
   setHeaders: (res, filePath) => {
     res.setHeader('Accept-Ranges', 'bytes');
@@ -58,7 +59,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
     } else if (lowerPath.endsWith('.jpg') || lowerPath.endsWith('.jpeg')) {
       res.setHeader('Content-Type', 'image/jpeg');
     } else {
-      res.setHeader('Content-Type', 'application/octet-stream');
+      res.setHeader('Content-Type', 'application/octet-stream'); // Strict fallback
     }
   }
 }));
@@ -100,13 +101,11 @@ app.get('/api/me', (req, res) => {
 
 // --- AUDIOBOOK CATALOG ROUTES ---
 app.get('/api/books', (req, res) => {
-  const db = readDB();
-  res.json(db.books);
+  res.json(readDB().books);
 });
 
 app.get('/api/books/:id', (req, res) => {
-  const db = readDB();
-  const book = db.books.find((b: any) => b.id === req.params.id);
+  const book = readDB().books.find((b: any) => b.id === req.params.id);
   if (!book) return res.status(404).json({ message: 'Book not found' });
   res.json(book);
 });
@@ -185,6 +184,7 @@ app.patch('/api/episodes/:id', (req, res) => {
   res.json({ success: true });
 });
 
+// --- USER PROGRESS ROUTES ---
 app.post('/api/progress', (req, res) => {
   const db = readDB();
   const { episodeId, bookId, progress, duration, completed } = req.body;
@@ -203,33 +203,8 @@ app.post('/api/progress', (req, res) => {
   res.json({ success: true });
 });
 
-// --- NEW: SERVE THE REACT FRONTEND WEBSITE ---
-// This safely locates your Vite/React build output and serves the UI
-const possibleClientPaths = [
-  __dirname, // If server and client dist are merged
-  path.join(__dirname, '../dist'), // Standard Vite output
-  path.join(__dirname, '../public')
-];
-
-const clientPath = possibleClientPaths.find(p => fs.existsSync(path.join(p, 'index.html'))) || __dirname;
-
-app.use(express.static(clientPath));
-
-// Catch-all route to hand over navigation to React Router
-app.get('*', (req, res) => {
-  if (!req.path.startsWith('/api') && !req.path.startsWith('/uploads')) {
-    const indexPath = path.join(clientPath, 'index.html');
-    if (fs.existsSync(indexPath)) {
-      res.sendFile(indexPath);
-    } else {
-      res.status(404).send("API is running, but React frontend index.html was not found.");
-    }
-  }
-});
-
 // --- SERVER INITIALIZATION ---
-// NEW: Binds to 0.0.0.0 specifically so Railway's router can let traffic in
 const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 8080;
 app.listen(port, '0.0.0.0', () => {
-  console.log(`Zuniobooks backend active on port ${port} and bound to 0.0.0.0`);
+  console.log(`Zuniobooks backend active on port ${port}`);
 });
