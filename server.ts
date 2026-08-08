@@ -9,9 +9,11 @@ import { createServer as createViteServer } from 'vite';
 import { initDatabase, dbService, UserRecord } from './src/server/db.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'zuniobooks_galaxy_secret_key_2026';
-
-// THE FIX: Listen to the environment port assigned by your host, fallback to 3000 locally
 const PORT = process.env.PORT || 3000;
+
+// Respect Railway Persistent Volume variables
+const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), 'data');
+const DB_FILE = path.join(DATA_DIR, 'db.json');
 
 const UPLOADS_DIR = process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads');
 const COVERS_DIR = path.join(UPLOADS_DIR, 'covers');
@@ -72,12 +74,20 @@ function requireAdmin(req: AuthRequest, res: Response, next: NextFunction) {
 async function startServer() {
   await initDatabase();
   
-  const db = require('./src/server/db.js').loadDB();
-  const adminIndex = db.users.findIndex((u: any) => u.username.toLowerCase() === 'zune19');
-  if (adminIndex !== -1 && db.users[adminIndex].role !== 'admin') {
-    db.users[adminIndex].role = 'admin';
-    require('./src/server/db.js').saveDB(db);
-    console.log('✅ FORCE UPGRADE: zune19 has been granted Admin privileges.');
+  // CRITICAL FIX: Safe file-system modification to force admin privileges, bypassing esbuild require() errors.
+  if (fs.existsSync(DB_FILE)) {
+    try {
+      const raw = fs.readFileSync(DB_FILE, 'utf-8');
+      const db = JSON.parse(raw);
+      const adminIndex = db.users.findIndex((u: any) => u.username.toLowerCase() === 'zune19');
+      if (adminIndex !== -1 && db.users[adminIndex].role !== 'admin') {
+        db.users[adminIndex].role = 'admin';
+        fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), 'utf-8');
+        console.log('✅ FORCE UPGRADE: zune19 has been granted Admin privileges.');
+      }
+    } catch (e) {
+      console.error('Failed to force upgrade admin:', e);
+    }
   }
 
   const app = express();
