@@ -1,194 +1,124 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { User, Book } from './types';
-import { api } from './lib/api';
-import { AudioProvider } from './context/AudioContext';
-import { GalaxyBackground } from './components/GalaxyBackground';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { Header } from './components/Header';
-import { Sidebar } from './components/Sidebar';
-import { AudioPlayerBar } from './components/AudioPlayerBar';
+import { AudioProvider } from './context/AudioContext';
+import { AudioPlayer } from './components/AudioPlayer';
+import { api } from './lib/api';
+import { User } from './types';
+
+// Page Views
 import { ExploreView } from './components/ExploreView';
 import { BookDetailView } from './components/BookDetailView';
-import { LibraryView } from './components/LibraryView';
 import { AdminPortal } from './components/AdminPortal';
 import { AuthModal } from './components/AuthModal';
-import { WelcomeView } from './components/WelcomeView';
 
-const pageVariants = {
-  initial: { opacity: 0, y: 15, scale: 0.98 },
-  animate: { opacity: 1, y: 0, scale: 1 },
-  exit: { opacity: 0, y: -15, scale: 0.98 },
-};
-const pageTransition = { duration: 0.4, ease: [0.22, 1, 0.36, 1] };
-
-export function AppContent() {
-  const [user, setUser] = useState<User | null>(null);
-  const [activeView, setActiveView] = useState<string>('explore');
-  const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
-  const [preSelectedAdminBookId, setPreSelectedAdminBookId] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [books, setBooks] = useState<Book[]>([]);
-  const [loadingBooks, setLoadingBooks] = useState<boolean>(true);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
-
-  useEffect(() => {
-    api.getMe()
-      .then((u) => setUser(u))
-      .catch(() => api.logout());
-  }, []);
-
-  const refreshBooks = async () => {
-    if (!user) return; // Do not fetch data if not logged in
-    try {
-      setLoadingBooks(true);
-      const data = await api.getBooks(searchQuery);
-      setBooks(data);
-    } catch (err) {
-      console.error('Failed to load books:', err);
-    } finally {
-      setLoadingBooks(false);
-    }
-  };
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      refreshBooks();
-    }, 150);
-    return () => clearTimeout(timer);
-  }, [searchQuery, user]);
-
-  const handleSearchChange = (query: string) => {
-    setSearchQuery(query);
-    if (query.trim() && activeView !== 'explore') {
-      setActiveView('explore');
-    }
-  };
-
-  const handleSelectBook = (book: Book) => {
-    setSelectedBookId(book.id);
-    setActiveView('detail');
-  };
-
-  const handleNavigateAdminUploadEpisode = (bookId: string) => {
-    setPreSelectedAdminBookId(bookId);
-    setActiveView('admin');
-  };
-
-  const handleLogout = () => {
-    api.logout();
-    setUser(null);
-    if (activeView === 'admin') setActiveView('explore');
-  };
+// We put the layout inside a child component so we can use the 'useNavigate' hook
+const AppContent = ({ user, handleLogout, searchQuery, setSearchQuery }: any) => {
+  const navigate = useNavigate();
+  const location = useLocation();
 
   return (
-    <div className="relative min-h-screen text-slate-100 flex flex-col font-sans selection:bg-[#facc15] selection:text-black overflow-x-hidden bg-[#121212]">
-      <GalaxyBackground />
+    <div className="min-h-screen bg-[#121212] text-white flex flex-col font-sans">
+      <Header 
+        user={user} 
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        onLogout={handleLogout}
+        // Push real URLs instead of changing state
+        onNavigateHome={() => navigate('/home')}
+        onNavigateAdmin={() => navigate('/admin')}
+        onLoginClick={() => navigate('/login')}
+        onSignupClick={() => navigate('/signup')}
+        onToggleMobileMenu={() => {}}
+      />
 
-      <div className="relative z-10 flex flex-col min-h-screen">
-        <Header
-          user={user}
-          searchQuery={searchQuery}
-          setSearchQuery={handleSearchChange}
-          onOpenAuth={() => setIsAuthModalOpen(true)}
-          onLogout={handleLogout}
-          onNavigateAdmin={() => setActiveView('admin')}
-          onNavigateHome={() => {
-            setActiveView('explore');
-            setSelectedBookId(null);
-            setSearchQuery('');
-          }}
-          onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        />
-
-        {!user ? (
-          // Renders the clean Welcome Page, keeping your data locked down
-          <WelcomeView onOpenAuth={() => setIsAuthModalOpen(true)} />
-        ) : (
-          // Renders the full platform only for authenticated users
-          <div className="flex-1 flex max-w-[1600px] w-full mx-auto relative">
-            <Sidebar
-              activeView={activeView}
-              setActiveView={(view) => {
-                setActiveView(view);
-                if (view !== 'detail') setSelectedBookId(null);
-              }}
+      {/* The main scrollable area where the pages change */}
+      <main className="flex-1 overflow-y-auto pb-24" id="main-scroll-container">
+        <Routes>
+          {/* Default redirect to home */}
+          <Route path="/" element={<Navigate to="/home" replace />} />
+          
+          <Route path="/home" element={
+            <ExploreView 
+              searchQuery={searchQuery} 
+              onClearSearch={() => setSearchQuery('')}
               user={user}
-              isOpen={isMobileMenuOpen}
-              onClose={() => setIsMobileMenuOpen(false)}
+              onNavigateAdmin={() => navigate('/admin')}
             />
+          } />
+          
+          <Route path="/library" element={
+            <ExploreView 
+              searchQuery={searchQuery} 
+              filter="library"
+              onClearSearch={() => setSearchQuery('')}
+              user={user}
+              onNavigateAdmin={() => navigate('/admin')}
+            />
+          } />
+          
+          {/* Beautiful Book and Episode URLs */}
+          <Route path="/book/:bookId" element={
+            <BookDetailView 
+              user={user} 
+              onOpenAuth={() => navigate('/login')} 
+            />
+          } />
+          
+          <Route path="/book/:bookId/episode/:episodeId" element={
+            <BookDetailView 
+              user={user} 
+              onOpenAuth={() => navigate('/login')} 
+            />
+          } />
+          
+          {/* Protected Admin Portal */}
+          <Route path="/admin" element={user?.role === 'admin' ? <AdminPortal /> : <Navigate to="/home" />} />
+        </Routes>
+      </main>
 
-            <main id="main-scroll-container" className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0 overflow-y-auto overflow-x-hidden">
-              <AnimatePresence mode="wait">
-                {activeView === 'explore' && (
-                  <motion.div key="explore" initial="initial" animate="animate" exit="exit" variants={pageVariants} transition={pageTransition} className="min-h-full">
-                    <ExploreView
-                      books={books}
-                      searchQuery={searchQuery}
-                      onClearSearch={() => setSearchQuery('')}
-                      onSelectBook={handleSelectBook}
-                      user={user}
-                      onOpenAuth={() => setIsAuthModalOpen(true)}
-                      onNavigateAdmin={() => setActiveView('admin')}
-                      refreshBooks={refreshBooks}
-                    />
-                  </motion.div>
-                )}
-
-                {activeView === 'detail' && selectedBookId && (
-                  <motion.div key="detail" initial="initial" animate="animate" exit="exit" variants={pageVariants} transition={pageTransition} className="min-h-full">
-                    <BookDetailView
-                      bookId={selectedBookId}
-                      onBack={() => setActiveView('explore')}
-                      user={user}
-                      onOpenAuth={() => setIsAuthModalOpen(true)}
-                      onNavigateAdminUploadEpisode={handleNavigateAdminUploadEpisode}
-                      refreshBooks={refreshBooks}
-                    />
-                  </motion.div>
-                )}
-
-                {activeView === 'library' && (
-                  <motion.div key="library" initial="initial" animate="animate" exit="exit" variants={pageVariants} transition={pageTransition} className="min-h-full">
-                    <LibraryView onSelectBook={handleSelectBook} user={user} onOpenAuth={() => setIsAuthModalOpen(true)} />
-                  </motion.div>
-                )}
-
-                {activeView === 'favorites' && (
-                  <motion.div key="favorites" initial="initial" animate="animate" exit="exit" variants={pageVariants} transition={pageTransition} className="min-h-full">
-                    <LibraryView onSelectBook={handleSelectBook} user={user} onOpenAuth={() => setIsAuthModalOpen(true)} />
-                  </motion.div>
-                )}
-
-                {activeView === 'admin' && (
-                  <motion.div key="admin" initial="initial" animate="animate" exit="exit" variants={pageVariants} transition={pageTransition} className="min-h-full">
-                    <AdminPortal user={user} refreshBooks={refreshBooks} preSelectedBookId={preSelectedAdminBookId} />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </main>
-          </div>
-        )}
-
-        {user && <AudioPlayerBar />}
-
-        <AuthModal
-          isOpen={isAuthModalOpen}
-          onClose={() => setIsAuthModalOpen(false)}
-          onSuccess={(loggedUser) => {
-            setUser(loggedUser);
-            refreshBooks();
-          }}
+      {/* Auth Modals triggered directly by the URL (e.g., moonzune.com/login) */}
+      {(location.pathname === '/login' || location.pathname === '/signup') && (
+        <AuthModal 
+          mode={location.pathname.replace('/', '') as 'login' | 'signup'}
+          onClose={() => navigate(-1)} 
+          onSuccess={() => navigate('/home')} 
         />
-      </div>
+      )}
+
+      {/* The Spotify Secret: The AudioPlayer sits outside the Routes so it never stops playing! */}
+      <AudioPlayer />
     </div>
   );
-}
+};
 
 export default function App() {
+  const [user, setUser] = useState<User | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Auto-login check on app load
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      api.getCurrentUser().then(setUser).catch(() => localStorage.removeItem('token'));
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    setUser(null);
+  };
+
   return (
     <AudioProvider>
-      <AppContent />
+      <Router>
+        <AppContent 
+          user={user} 
+          handleLogout={handleLogout}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+        />
+      </Router>
     </AudioProvider>
   );
 }
