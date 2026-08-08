@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { Header } from './components/Header';
+import { Sidebar } from './components/Sidebar';
 import { AudioProvider } from './context/AudioContext';
-
-// FIX: We are now correctly pointing to AudioPlayerBar!
 import { AudioPlayerBar } from './components/AudioPlayerBar'; 
 
 import { api } from './lib/api';
@@ -11,14 +10,15 @@ import { User } from './types';
 
 // Page Views
 import { ExploreView } from './components/ExploreView';
+import { LibraryView } from './components/LibraryView';
 import { BookDetailView } from './components/BookDetailView';
 import { AdminPortal } from './components/AdminPortal';
 import { AuthModal } from './components/AuthModal';
 
-// We put the layout inside a child component so we can use the 'useNavigate' hook
 const AppContent = ({ user, handleLogout, searchQuery, setSearchQuery }: any) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-[#121212] text-white flex flex-col font-sans">
@@ -27,69 +27,66 @@ const AppContent = ({ user, handleLogout, searchQuery, setSearchQuery }: any) =>
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         onLogout={handleLogout}
-        // Push real URLs instead of changing state
         onNavigateHome={() => navigate('/home')}
         onNavigateAdmin={() => navigate('/admin')}
         onLoginClick={() => navigate('/login')}
         onSignupClick={() => navigate('/signup')}
-        onToggleMobileMenu={() => {}}
+        onToggleMobileMenu={() => setIsSidebarOpen(!isSidebarOpen)}
       />
 
-      {/* The main scrollable area where the pages change */}
-      <main className="flex-1 overflow-y-auto pb-24" id="main-scroll-container">
-        <Routes>
-          {/* Default redirect to home */}
-          <Route path="/" element={<Navigate to="/home" replace />} />
-          
-          <Route path="/home" element={
-            <ExploreView 
-              searchQuery={searchQuery} 
-              onClearSearch={() => setSearchQuery('')}
-              user={user}
-              onNavigateAdmin={() => navigate('/admin')}
-            />
-          } />
-          
-          <Route path="/library" element={
-            <ExploreView 
-              searchQuery={searchQuery} 
-              filter="library"
-              onClearSearch={() => setSearchQuery('')}
-              user={user}
-              onNavigateAdmin={() => navigate('/admin')}
-            />
-          } />
-          
-          {/* Beautiful Book and Episode URLs */}
-          <Route path="/book/:bookId" element={
-            <BookDetailView 
-              user={user} 
-              onOpenAuth={() => navigate('/login')} 
-            />
-          } />
-          
-          <Route path="/book/:bookId/episode/:episodeId" element={
-            <BookDetailView 
-              user={user} 
-              onOpenAuth={() => navigate('/login')} 
-            />
-          } />
-          
-          {/* Protected Admin Portal */}
-          <Route path="/admin" element={user?.role === 'admin' ? <AdminPortal /> : <Navigate to="/home" />} />
-        </Routes>
-      </main>
+      {/* Flex container holding the Sidebar and Main Content side-by-side */}
+      <div className="flex-1 flex overflow-hidden relative">
+        <Sidebar 
+          user={user} 
+          isOpen={isSidebarOpen} 
+          onClose={() => setIsSidebarOpen(false)} 
+        />
 
-      {/* Auth Modals triggered directly by the URL (e.g., moonzune.com/login) */}
+        {/* Main scrollable area */}
+        <main className="flex-1 overflow-y-auto pb-24" id="main-scroll-container">
+          <Routes>
+            <Route path="/" element={<Navigate to="/home" replace />} />
+            
+            <Route path="/home" element={
+              <ExploreView 
+                searchQuery={searchQuery} 
+                onClearSearch={() => setSearchQuery('')}
+                user={user}
+                onNavigateAdmin={() => navigate('/admin')}
+              />
+            } />
+            
+            <Route path="/library" element={
+              <LibraryView 
+                user={user}
+                onOpenAuth={() => navigate('/login')}
+                onSelectBook={(book) => navigate(`/book/${book.id}`)}
+              />
+            } />
+            
+            <Route path="/book/:bookId" element={
+              <BookDetailView user={user} onOpenAuth={() => navigate('/login')} />
+            } />
+            
+            <Route path="/book/:bookId/episode/:episodeId" element={
+              <BookDetailView user={user} onOpenAuth={() => navigate('/login')} />
+            } />
+            
+            <Route path="/admin" element={user?.role === 'admin' ? <AdminPortal /> : <Navigate to="/home" />} />
+          </Routes>
+        </main>
+      </div>
+
+      {/* Auth Modals triggered directly by the URL */}
       {(location.pathname === '/login' || location.pathname === '/signup') && (
         <AuthModal 
+          isOpen={true}
           mode={location.pathname.replace('/', '') as 'login' | 'signup'}
           onClose={() => navigate(-1)} 
           onSuccess={() => navigate('/home')} 
         />
       )}
 
-      {/* FIX: Now using the correct AudioPlayerBar component! */}
       <AudioPlayerBar />
     </div>
   );
@@ -101,14 +98,14 @@ export default function App() {
 
   // Auto-login check on app load
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('zuniobooks_token');
     if (token) {
-      api.getCurrentUser().then(setUser).catch(() => localStorage.removeItem('token'));
+      api.getMe().then(setUser).catch(() => localStorage.removeItem('zuniobooks_token'));
     }
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
+    api.logout();
     setUser(null);
   };
 
