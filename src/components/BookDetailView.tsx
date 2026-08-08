@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Play, Pause, ArrowLeft, Clock, PlusCircle, Heart } from 'lucide-react';
@@ -22,7 +22,6 @@ const itemVariants = {
 };
 
 export const BookDetailView: React.FC<BookDetailViewProps> = ({ user, onOpenAuth }) => {
-  // ROUTER MAGIC: Grab the book and episode ID directly from the URL!
   const { bookId, episodeId } = useParams();
   const navigate = useNavigate();
   
@@ -30,6 +29,9 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({ user, onOpenAuth
   const [loading, setLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
   const { currentEpisode, isPlaying, playEpisode, togglePlayPause } = useAudio();
+  
+  // CRITICAL FIX: Tracks if the URL deep-link has already been triggered to prevent violent audio restarts
+  const hasAutoPlayed = useRef(false); 
 
   useEffect(() => {
     if (bookId) {
@@ -38,10 +40,10 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({ user, onOpenAuth
         setIsFavorite(data.isFavorite || false);
         setLoading(false);
         
-        // DEEP LINKING MAGIC: If an episode ID is in the URL, auto-play it!
-        if (episodeId && data.episodes) {
+        if (episodeId && data.episodes && !hasAutoPlayed.current) {
           const targetEpisode = data.episodes.find((ep: Episode) => ep.id === episodeId);
           if (targetEpisode) {
+            hasAutoPlayed.current = true;
             setTimeout(() => playEpisode(data, targetEpisode), 500);
           }
         }
@@ -69,9 +71,9 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({ user, onOpenAuth
       if (currentEpisode?.id === episode.id) {
         togglePlayPause();
       } else {
+        hasAutoPlayed.current = true; // Lock the auto-player so it doesn't interrupt manual clicks
         playEpisode(book, episode);
       }
-      // ROUTER MAGIC: Pushes the episode into the URL bar!
       navigate(`/book/${book.id}/episode/${episode.id}`, { replace: true });
     }
   };
@@ -96,7 +98,6 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({ user, onOpenAuth
       <motion.button
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
-        // ROUTER MAGIC: Native backward navigation
         onClick={() => navigate(-1)}
         className="flex items-center gap-2 text-[#b3b3b3] hover:text-white transition-colors mb-10 group w-fit"
       >
@@ -169,7 +170,6 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({ user, onOpenAuth
       {user?.role === 'admin' && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mb-10">
           <button
-            // ADMIN ROUTING MAGIC: Appends the specific book ID to the URL!
             onClick={() => navigate(`/admin?bookId=${book.id}`)}
             className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 text-white text-sm font-bold transition-colors"
           >
