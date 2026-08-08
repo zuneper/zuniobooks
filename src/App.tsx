@@ -36,7 +36,6 @@ const AppContent = ({ user, setUser, handleLogout, searchQuery, setSearchQuery }
       />
 
       <div className="flex-1 flex overflow-hidden relative">
-        {/* CRITICAL FIX: Sidebar only renders if the user is authenticated */}
         {user && (
           <Sidebar 
             user={user} 
@@ -70,7 +69,6 @@ const AppContent = ({ user, setUser, handleLogout, searchQuery, setSearchQuery }
               />
             } />
 
-            {/* CRITICAL FIX: Restored the Favorites route */}
             <Route path="/favorites" element={
               <LibraryView 
                 user={user}
@@ -87,7 +85,8 @@ const AppContent = ({ user, setUser, handleLogout, searchQuery, setSearchQuery }
               <BookDetailView user={user} onOpenAuth={() => navigate('/login')} />
             } />
             
-            <Route path="/admin" element={user?.role === 'admin' ? <AdminPortal /> : <Navigate to="/home" />} />
+            {/* THE FIX: user={user} is now correctly passed to the AdminPortal! */}
+            <Route path="/admin" element={user?.role === 'admin' ? <AdminPortal user={user} /> : <Navigate to="/home" />} />
           </Routes>
         </main>
       </div>
