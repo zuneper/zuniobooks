@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom'; // <-- ADDED FOR ROUTING
 import { motion } from 'framer-motion';
 import { Play, Pause, ArrowLeft, Clock, PlusCircle, Heart } from 'lucide-react';
 import { Book, Episode, User } from '../types';
@@ -6,12 +7,8 @@ import { api } from '../lib/api';
 import { useAudio } from '../context/AudioContext';
 
 interface BookDetailViewProps {
-  bookId: string;
-  onBack: () => void;
-  user: User | null;
-  onOpenAuth: () => void;
-  onNavigateAdminUploadEpisode: (bookId: string) => void;
-  refreshBooks: () => void;
+  user?: User | null;
+  onOpenAuth?: () => void;
 }
 
 const listVariants = {
@@ -24,44 +21,67 @@ const itemVariants = {
   show: { opacity: 1, x: 0 }
 };
 
-export const BookDetailView: React.FC<BookDetailViewProps> = ({
-  bookId,
-  onBack,
-  user,
-  onOpenAuth,
-  onNavigateAdminUploadEpisode,
-}) => {
+export const BookDetailView: React.FC<BookDetailViewProps> = ({ user, onOpenAuth }) => {
+  // ROUTER MAGIC: Grab the book and episode ID directly from the URL!
+  const { bookId, episodeId } = useParams();
+  const navigate = useNavigate();
+  
   const [book, setBook] = useState<Book | null>(null);
   const [loading, setLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
   const { currentEpisode, isPlaying, playEpisode, togglePlayPause } = useAudio();
 
   useEffect(() => {
-    api.getBook(bookId).then((data) => {
-      setBook(data);
-      setIsFavorite(data.isFavorite || false);
-      setLoading(false);
-    });
-  }, [bookId]);
+    if (bookId) {
+      api.getBook(bookId).then((data) => {
+        setBook(data);
+        setIsFavorite(data.isFavorite || false);
+        setLoading(false);
+        
+        // DEEP LINKING MAGIC: If an episode ID is in the URL, auto-play it!
+        if (episodeId && data.episodes) {
+          const targetEpisode = data.episodes.find((ep: Episode) => ep.id === episodeId);
+          if (targetEpisode) {
+            setTimeout(() => playEpisode(data, targetEpisode), 500);
+          }
+        }
+      });
+    }
+  }, [bookId, episodeId, playEpisode]);
 
   const handleToggleFavorite = async () => {
-    if (!user) return onOpenAuth();
+    if (!user && onOpenAuth) return onOpenAuth();
     const originalState = isFavorite;
     setIsFavorite(!isFavorite);
-    try {
-      const res = await api.toggleFavorite(bookId);
-      setIsFavorite(res.isFavorite);
-    } catch {
-      setIsFavorite(originalState);
+    if (bookId) {
+      try {
+        const res = await api.toggleFavorite(bookId);
+        setIsFavorite(res.isFavorite);
+      } catch {
+        setIsFavorite(originalState);
+      }
     }
   };
 
-  if (loading || !book) return null; 
+  const handlePlayEpisode = (episode: Episode) => {
+    if (!user && onOpenAuth) return onOpenAuth();
+    if (book) {
+      if (currentEpisode?.id === episode.id) {
+        togglePlayPause();
+      } else {
+        playEpisode(book, episode);
+      }
+      // ROUTER MAGIC: Pushes the episode into the URL bar!
+      navigate(`/book/${book.id}/episode/${episode.id}`, { replace: true });
+    }
+  };
+
+  if (loading || !book) return <div className="text-center mt-20 text-[#b3b3b3]">Loading...</div>; 
 
   const isCurrentBookPlaying = isPlaying && currentEpisode?.bookId === book.id;
 
   return (
-    <div className="relative min-h-screen pb-32 pt-4 max-w-[1200px] mx-auto z-10">
+    <div className="relative min-h-screen pb-32 pt-4 px-4 md:px-8 max-w-[1200px] mx-auto z-10">
       <div className="absolute top-[-50px] left-[-10vw] right-[-10vw] h-[600px] overflow-hidden -z-10 pointer-events-none">
         <motion.div
           initial={{ opacity: 0 }}
@@ -76,7 +96,8 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
       <motion.button
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
-        onClick={onBack}
+        // ROUTER MAGIC: Native backward navigation
+        onClick={() => navigate(-1)}
         className="flex items-center gap-2 text-[#b3b3b3] hover:text-white transition-colors mb-10 group w-fit"
       >
         <div className="p-2 rounded-full bg-black/20 backdrop-blur-md group-hover:bg-black/40 transition-colors">
@@ -124,11 +145,13 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
             <button
               onClick={() => {
                 if (book.episodes && book.episodes.length > 0) {
-                  if (currentEpisode?.bookId === book.id) togglePlayPause();
-                  else playEpisode(book, book.episodes[0]);
+                  if (currentEpisode?.bookId === book.id) {
+                     togglePlayPause();
+                  } else {
+                     handlePlayEpisode(book.episodes[0]);
+                  }
                 }
               }}
-              // Premium Yellow (#facc15) Background and Hover (#eab308)
               className="flex items-center justify-center w-14 h-14 rounded-full bg-[#facc15] hover:bg-[#eab308] hover:scale-105 active:scale-95 transition-all shadow-[0_8px_16px_rgba(250,204,21,0.3)]"
             >
               {isCurrentBookPlaying ? <Pause className="w-6 h-6 text-black" /> : <Play className="w-6 h-6 text-black translate-x-0.5" />}
@@ -146,11 +169,11 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
       {user?.role === 'admin' && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mb-10">
           <button
-            onClick={() => onNavigateAdminUploadEpisode(book.id)}
+            onClick={() => navigate('/admin')}
             className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 text-white text-sm font-bold transition-colors"
           >
             <PlusCircle className="w-4 h-4 text-[#facc15]" />
-            <span>Upload New Chapter</span>
+            <span>Upload New Chapter in Admin</span>
           </button>
         </motion.div>
       )}
@@ -172,7 +195,7 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
               <motion.div
                 variants={itemVariants}
                 key={ep.id}
-                onClick={() => user ? playEpisode(book, ep) : onOpenAuth()}
+                onClick={() => handlePlayEpisode(ep)}
                 className={`flex items-center px-4 py-3 rounded-md cursor-pointer transition-colors group ${
                   isThisEpisodeSelected ? 'bg-white/10' : 'hover:bg-white/5'
                 }`}
