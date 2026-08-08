@@ -110,7 +110,6 @@ async function startServer() {
     const mimeTypes: Record<string, string> = {
       '.mp3': 'audio/mpeg',
       '.m4a': 'audio/mp4',
-      '.mp4': 'audio/mp4', // Added explicit mp4 support
       '.aac': 'audio/aac',
       '.wav': 'audio/wav',
       '.ogg': 'audio/ogg',
@@ -137,7 +136,6 @@ async function startServer() {
       const head = {
         'Content-Length': fileSize,
         'Content-Type': contentType,
-        'Accept-Ranges': 'bytes', // THE FIX: This tells Android to use the loudspeaker media engine even on initial load
       };
       res.writeHead(200, head);
       fs.createReadStream(filePath).pipe(res);
@@ -456,10 +454,26 @@ async function startServer() {
       server: { middlewareMode: true },
       appType: 'spa',
     });
+    
+    // THIS IS THE CRITICAL FIX FOR REACT ROUTER DEEP LINKS IN DEV
     app.use(vite.middlewares);
+    app.use('*', async (req, res, next) => {
+      try {
+        const url = req.originalUrl;
+        let template = fs.readFileSync(path.resolve(process.cwd(), 'index.html'), 'utf-8');
+        template = await vite.transformIndexHtml(url, template);
+        res.status(200).set({ 'Content-Type': 'text/html' }).end(template);
+      } catch (e) {
+        vite.ssrFixStacktrace(e as Error);
+        next(e);
+      }
+    });
+
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
+    
+    // THIS IS THE CRITICAL FIX FOR REACT ROUTER DEEP LINKS IN PRODUCTION
     app.get('*', (req: Request, res: Response) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
