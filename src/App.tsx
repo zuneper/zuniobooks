@@ -14,8 +14,9 @@ import { LibraryView } from './components/LibraryView';
 import { BookDetailView } from './components/BookDetailView';
 import { AdminPortal } from './components/AdminPortal';
 import { AuthModal } from './components/AuthModal';
+import { WelcomeView } from './components/WelcomeView';
 
-const AppContent = ({ user, handleLogout, searchQuery, setSearchQuery }: any) => {
+const AppContent = ({ user, setUser, handleLogout, searchQuery, setSearchQuery }: any) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -34,7 +35,6 @@ const AppContent = ({ user, handleLogout, searchQuery, setSearchQuery }: any) =>
         onToggleMobileMenu={() => setIsSidebarOpen(!isSidebarOpen)}
       />
 
-      {/* Flex container holding the Sidebar and Main Content side-by-side */}
       <div className="flex-1 flex overflow-hidden relative">
         <Sidebar 
           user={user} 
@@ -42,18 +42,21 @@ const AppContent = ({ user, handleLogout, searchQuery, setSearchQuery }: any) =>
           onClose={() => setIsSidebarOpen(false)} 
         />
 
-        {/* Main scrollable area */}
         <main className="flex-1 overflow-y-auto pb-24" id="main-scroll-container">
           <Routes>
             <Route path="/" element={<Navigate to="/home" replace />} />
             
             <Route path="/home" element={
-              <ExploreView 
-                searchQuery={searchQuery} 
-                onClearSearch={() => setSearchQuery('')}
-                user={user}
-                onNavigateAdmin={() => navigate('/admin')}
-              />
+              user ? (
+                <ExploreView 
+                  searchQuery={searchQuery} 
+                  onClearSearch={() => setSearchQuery('')}
+                  user={user}
+                  onNavigateAdmin={() => navigate('/admin')}
+                />
+              ) : (
+                <WelcomeView onOpenAuth={() => navigate('/login')} />
+              )
             } />
             
             <Route path="/library" element={
@@ -77,13 +80,15 @@ const AppContent = ({ user, handleLogout, searchQuery, setSearchQuery }: any) =>
         </main>
       </div>
 
-      {/* Auth Modals triggered directly by the URL */}
       {(location.pathname === '/login' || location.pathname === '/signup') && (
         <AuthModal 
           isOpen={true}
           mode={location.pathname.replace('/', '') as 'login' | 'signup'}
           onClose={() => navigate(-1)} 
-          onSuccess={() => navigate('/home')} 
+          onSuccess={(loggedInUser) => {
+            setUser(loggedInUser); // UI will now instantly update upon login!
+            navigate('/home');
+          }} 
         />
       )}
 
@@ -96,7 +101,6 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Auto-login check on app load
   useEffect(() => {
     const token = localStorage.getItem('zuniobooks_token');
     if (token) {
@@ -114,6 +118,7 @@ export default function App() {
       <Router>
         <AppContent 
           user={user} 
+          setUser={setUser} 
           handleLogout={handleLogout}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
