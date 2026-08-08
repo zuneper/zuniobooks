@@ -2,7 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { Header } from './components/Header';
 import { AudioProvider } from './context/AudioContext';
-import { AudioPlayer } from './components/AudioPlayer';
+
+// FIX: We are now correctly pointing to AudioPlayerBar!
+import { AudioPlayerBar } from './components/AudioPlayerBar'; 
+
 import { api } from './lib/api';
 import { User } from './types';
 
@@ -86,8 +89,8 @@ const AppContent = ({ user, handleLogout, searchQuery, setSearchQuery }: any) =>
         />
       )}
 
-      {/* The Spotify Secret: The AudioPlayer sits outside the Routes so it never stops playing! */}
-      <AudioPlayer />
+      {/* FIX: Now using the correct AudioPlayerBar component! */}
+      <AudioPlayerBar />
     </div>
   );
 };
