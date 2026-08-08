@@ -31,28 +31,21 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lastSavedProgress = useRef<number>(0);
 
-  // --- THE HIJACK ENGINE (WEB AUDIO API) ---
   const audioCtxRef = useRef<AudioContext | null>(null);
   const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
 
   const unlockLoudspeaker = () => {
     if (!audioRef.current) return;
     
-    // Initialize the Synthesizer/Game Audio Engine
     if (!audioCtxRef.current) {
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
       if (AudioContextClass) {
         audioCtxRef.current = new AudioContextClass();
-        
-        // Intercept the audio stream BEFORE the phone routes it to the earpiece
         sourceNodeRef.current = audioCtxRef.current.createMediaElementSource(audioRef.current);
-        
-        // Pipe it directly to the master speaker output
         sourceNodeRef.current.connect(audioCtxRef.current.destination);
       }
     }
     
-    // Browsers put the engine to sleep to save battery. Wake it up.
     if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
       audioCtxRef.current.resume();
     }
@@ -85,7 +78,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setCurrentEpisode(episode);
     
     if (audioRef.current) {
-      // ACTIVATE THE OVERRIDE EVERY TIME WE PLAY A TRACK
       unlockLoudspeaker();
 
       const fullUrl = episode.audioUrl.startsWith('http')
@@ -126,6 +118,12 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     mediaNode.onended = () => {
       setIsPlaying(false);
+      
+      // CRITICAL FIX: Ensure the completed status is permanently saved in the database!
+      if (currentBook && currentEpisode) {
+         api.saveProgress(currentEpisode.id, currentBook.id, duration, duration, true).catch(() => {});
+      }
+
       if (currentBook && currentEpisode && currentBook.episodes) {
         const currentIndex = currentBook.episodes.findIndex(e => e.id === currentEpisode.id);
         if (currentIndex !== -1 && currentIndex < currentBook.episodes.length - 1) {
@@ -134,7 +132,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
       }
     };
-  }, [currentBook, currentEpisode, playEpisode]);
+  }, [currentBook, currentEpisode, playEpisode, duration]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -152,7 +150,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const togglePlayPause = () => {
     if (!audioRef.current || !currentEpisode) return;
     
-    // ACTIVATE THE OVERRIDE IF PLAY IS PRESSED FROM PAUSE
     unlockLoudspeaker();
 
     if (isPlaying) {
@@ -188,7 +185,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       <audio 
         ref={audioRef}
         preload="metadata"
-        // CRITICAL: Required for Web Audio API to legally intercept the stream
         crossOrigin="anonymous" 
         style={{ display: 'none' }} 
       />
