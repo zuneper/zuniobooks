@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom'; // <-- ADDED FOR ROUTING
 import { Search, User as UserIcon, LogOut, Menu, X, Library, Shield } from 'lucide-react';
 import { User } from '../types';
 
@@ -7,27 +6,25 @@ interface HeaderProps {
   user: User | null;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
-  onOpenAuth?: () => void;
   onLogout: () => void;
-  onNavigateHome?: () => void;
-  onToggleMobileMenu?: () => void;
-  onNavigateAdmin?: () => void;
-  onLoginClick?: () => void; // Added from App.tsx mapping
-  onSignupClick?: () => void; // Added from App.tsx mapping
+  onNavigateHome: () => void;
+  onToggleMobileMenu: () => void;
+  onNavigateAdmin: () => void;
+  onLoginClick: () => void;
+  onSignupClick: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   user,
   searchQuery,
   setSearchQuery,
-  onOpenAuth,
   onLogout,
   onNavigateHome,
   onToggleMobileMenu,
   onNavigateAdmin,
   onLoginClick,
+  onSignupClick,
 }) => {
-  const navigate = useNavigate(); // Add Router navigation hook
   const [showMobileSearch, setShowMobileSearch] = useState(false);
   const [headerOpacity, setHeaderOpacity] = useState(0);
 
@@ -57,12 +54,12 @@ export const Header: React.FC<HeaderProps> = ({
         
         {/* Brand */}
         <div className="flex items-center gap-3">
-          {user && onToggleMobileMenu && (
+          {user && (
             <button onClick={onToggleMobileMenu} className="md:hidden text-[#b3b3b3] hover:text-white transition-colors">
               <Menu className="w-6 h-6" />
             </button>
           )}
-          <div onClick={() => { if(onNavigateHome) onNavigateHome(); else navigate('/home'); }} className="flex items-center gap-2 cursor-pointer group">
+          <div onClick={onNavigateHome} className="flex items-center gap-2 cursor-pointer group">
             <div className="w-8 h-8 rounded-full bg-[#facc15] flex items-center justify-center hover:scale-105 transition-transform shadow-[0_0_15px_rgba(250,204,21,0.3)]">
               <Library className="w-4 h-4 text-black" />
             </div>
@@ -105,7 +102,7 @@ export const Header: React.FC<HeaderProps> = ({
               {/* ADMIN SHIELD BUTTON */}
               {user.role === 'admin' && (
                 <button 
-                  onClick={() => { if(onNavigateAdmin) onNavigateAdmin(); else navigate('/admin'); }} 
+                  onClick={onNavigateAdmin} 
                   title="Admin Portal" 
                   className="p-2 text-[#facc15] hover:text-white hover:bg-[#282828] rounded-full transition-colors mr-1"
                 >
@@ -119,13 +116,13 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
                 <span className="text-sm font-bold text-white pr-1">{user.username}</span>
               </div>
-              <button onClick={() => { onLogout(); navigate('/home'); }} title="Log out" className="p-2 text-[#b3b3b3] hover:text-white hover:bg-[#282828] rounded-full transition-colors">
+              <button onClick={onLogout} title="Log out" className="p-2 text-[#b3b3b3] hover:text-white hover:bg-[#282828] rounded-full transition-colors">
                 <LogOut className="w-5 h-5" />
               </button>
             </div>
           ) : (
             <button 
-              onClick={() => { if(onLoginClick) onLoginClick(); else if(onOpenAuth) onOpenAuth(); else navigate('/login'); }} 
+              onClick={onLoginClick} 
               className="px-6 py-2.5 rounded-full text-sm font-bold text-black bg-[#facc15] hover:scale-105 active:scale-95 transition-transform shadow-[0_4px_14px_rgba(250,204,21,0.25)]"
             >
               Signup/Login
