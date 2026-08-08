@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom'; // <-- ADDED FOR SPOTIFY-STYLE NAVIGATION
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Play, Pause, Volume2, VolumeX, Volume1,
@@ -45,6 +46,8 @@ export const AudioPlayerBar: React.FC = () => {
     currentBook, currentEpisode, isPlaying, progress, duration, volume, 
     playbackRate, togglePlayPause, setVolume, setPlaybackRate, seek
   } = useAudio();
+
+  const navigate = useNavigate(); // <-- ADDED NAVIGATION HOOK
 
   const [isDragging, setIsDragging] = useState(false);
   const [dragProgress, setDragProgress] = useState(0);
@@ -224,10 +227,18 @@ export const AudioPlayerBar: React.FC = () => {
         <div className="flex items-center justify-between w-full px-6 max-w-[1600px] mx-auto h-full">
           {/* Desktop Left */}
           <div className="flex items-center gap-3.5 w-[30%] min-w-[180px] pr-4">
-            <img src={currentBook.coverUrl} alt="Cover" className="w-14 h-14 rounded-md object-cover shadow-md bg-[#282828] flex-shrink-0" />
-            <div className="flex flex-col min-w-0 w-full overflow-hidden justify-center">
-              <SmartMarquee text={currentBook.title} className="text-[14px] font-normal text-white hover:underline cursor-pointer" threshold={25} />
-              <SmartMarquee text={currentEpisode.title} className="text-[12px] text-[#b3b3b3] hover:text-white hover:underline cursor-pointer mt-0.5 transition-colors" threshold={30} />
+            <img 
+              src={currentBook.coverUrl} 
+              alt="Cover" 
+              onClick={() => navigate(`/book/${currentBook.id}`)}
+              className="w-14 h-14 rounded-md object-cover shadow-md bg-[#282828] flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity" 
+            />
+            <div 
+              className="flex flex-col min-w-0 w-full overflow-hidden justify-center cursor-pointer"
+              onClick={() => navigate(`/book/${currentBook.id}`)}
+            >
+              <SmartMarquee text={currentBook.title} className="text-[14px] font-normal text-white hover:underline" threshold={25} />
+              <SmartMarquee text={currentEpisode.title} className="text-[12px] text-[#b3b3b3] hover:text-white hover:underline mt-0.5 transition-colors" threshold={30} />
             </div>
             <button 
               onClick={handleToggleFavorite}
@@ -325,19 +336,30 @@ export const AudioPlayerBar: React.FC = () => {
           >
             <div className="flex items-center justify-between mb-8 mt-2">
               <button onClick={() => setIsMobileExpanded(false)} className="p-2 text-white hover:text-gray-300"><ChevronDown className="w-7 h-7" /></button>
-              <div className="flex flex-col items-center">
+              
+              <div 
+                className="flex flex-col items-center cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={() => { setIsMobileExpanded(false); navigate(`/book/${currentBook.id}`); }}
+              >
                 <span className="text-[10px] tracking-widest uppercase font-bold text-[#b3b3b3]">Now Playing</span>
                 <span className="text-xs font-bold mt-0.5 truncate max-w-[200px]">{currentBook.title}</span>
               </div>
+              
               <div className="w-11" />
             </div>
 
-            <div className="flex-1 min-h-0 flex items-center justify-center mb-8">
+            <div 
+              className="flex-1 min-h-0 flex items-center justify-center mb-8 cursor-pointer hover:opacity-90 transition-opacity"
+              onClick={() => { setIsMobileExpanded(false); navigate(`/book/${currentBook.id}`); }}
+            >
               <img src={currentBook.coverUrl} alt="Cover" className="w-full max-w-[320px] aspect-square rounded-lg shadow-2xl object-cover" />
             </div>
 
             <div className="flex items-center justify-between mb-6">
-              <div className="flex flex-col min-w-0 flex-1 pr-4">
+              <div 
+                className="flex flex-col min-w-0 flex-1 pr-4 cursor-pointer"
+                onClick={() => { setIsMobileExpanded(false); navigate(`/book/${currentBook.id}`); }}
+              >
                 <SmartMarquee text={currentBook.title} className="text-xl font-bold leading-relaxed mb-1" threshold={20} />
                 <SmartMarquee text={currentEpisode.title} className="text-sm text-[#b3b3b3] leading-relaxed" threshold={25} />
               </div>
