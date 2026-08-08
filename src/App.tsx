@@ -46,6 +46,7 @@ const AppContent = ({ user, setUser, handleLogout, searchQuery, setSearchQuery }
           <Routes>
             <Route path="/" element={<Navigate to="/home" replace />} />
             
+            {/* CRITICAL FIX: Hide the catalog from guests! */}
             <Route path="/home" element={
               user ? (
                 <ExploreView 
@@ -86,7 +87,7 @@ const AppContent = ({ user, setUser, handleLogout, searchQuery, setSearchQuery }
           mode={location.pathname.replace('/', '') as 'login' | 'signup'}
           onClose={() => navigate(-1)} 
           onSuccess={(loggedInUser) => {
-            setUser(loggedInUser); // UI will now instantly update upon login!
+            setUser(loggedInUser); // Update the UI immediately
             navigate('/home');
           }} 
         />
