@@ -1,69 +1,38 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom'; // <-- ADDED FOR ROUTING
-import { Search, Clock, Shield, Layers, Heart, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom'; 
+import { Search, Clock, Shield, Layers, Heart, X, Loader2 } from 'lucide-react';
 import { Book, User } from '../types';
+import { api } from '../lib/api';
 
 interface ExploreViewProps {
-  books?: Book[]; // Made optional since we fetch inside the component now (if needed), or pass from App
   searchQuery?: string;
   onClearSearch?: () => void;
   user?: User | null;
   onNavigateAdmin?: () => void;
-  filter?: string; // Added to support the /library route
 }
 
 const GENRES = [
-  'All',
-  'Sci-Fi',
-  'Cosmos',
-  'Fantasy',
-  'Mystery',
-  'Thriller',
-  'Business',
-  'Self-Help',
-  'Fiction',
-  'Non-Fiction',
-  'Classics',
+  'All', 'Sci-Fi', 'Cosmos', 'Fantasy', 'Mystery', 
+  'Thriller', 'Business', 'Self-Help', 'Fiction', 'Non-Fiction', 'Classics'
 ];
 
-// Clean, Flat Design Book Card
 const BookCard: React.FC<{ book: Book; onClick: () => void }> = ({ book, onClick }) => {
   return (
-    <div
-      onClick={onClick}
-      className="group cursor-pointer flex flex-col h-full bg-[#181818] hover:bg-[#282828] rounded-xl p-4 transition-all duration-300 shadow-sm"
-    >
-      {/* Cover Image */}
+    <div onClick={onClick} className="group cursor-pointer flex flex-col h-full bg-[#181818] hover:bg-[#282828] rounded-xl p-4 transition-all duration-300 shadow-sm">
       <div className="relative w-full aspect-square rounded-md overflow-hidden mb-4 bg-[#282828] shadow-md">
-        <img
-          src={book.coverUrl}
-          alt={book.title}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-in-out"
-          loading="lazy"
-        />
+        <img src={book.coverUrl} alt={book.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-in-out" loading="lazy" />
         {book.isFavorite && (
           <div className="absolute top-2 right-2 p-1.5 rounded-full bg-black/40 backdrop-blur-md">
             <Heart className="w-4 h-4 text-[#facc15] fill-[#facc15]" />
           </div>
         )}
       </div>
-      
-      {/* Text Details */}
       <div className="flex-1 flex flex-col">
-        <h3 className="text-[15px] font-bold text-white leading-relaxed mb-1 line-clamp-2">
-          {book.title}
-        </h3>
+        <h3 className="text-[15px] font-bold text-white leading-relaxed mb-1 line-clamp-2">{book.title}</h3>
         <p className="text-[13px] text-[#b3b3b3] mb-3 line-clamp-1">{book.author}</p>
-        
         <div className="mt-auto flex items-center justify-between text-[12px] text-[#b3b3b3] font-medium pt-2 border-t border-white/5">
-          <div className="flex items-center gap-1.5">
-            <Layers className="w-3.5 h-3.5" />
-            <span>{book.episodesCount || 0} Ch.</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Clock className="w-3.5 h-3.5" />
-            <span>{Math.floor((book.totalDurationSeconds || 0) / 60)}m</span>
-          </div>
+          <div className="flex items-center gap-1.5"><Layers className="w-3.5 h-3.5" /><span>{book.episodesCount || 0} Ch.</span></div>
+          <div className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /><span>{Math.floor((book.totalDurationSeconds || 0) / 60)}m</span></div>
         </div>
       </div>
     </div>
@@ -71,18 +40,17 @@ const BookCard: React.FC<{ book: Book; onClick: () => void }> = ({ book, onClick
 };
 
 export const ExploreView: React.FC<ExploreViewProps> = ({
-  books = [], // Default to empty array if not passed
   searchQuery = '',
   onClearSearch,
   user,
   onNavigateAdmin,
-  filter = '',
 }) => {
-  const navigate = useNavigate(); // <-- ADDED ROUTER NAVIGATION HOOK
+  const navigate = useNavigate();
+  const [books, setBooks] = useState<Book[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeGenre, setActiveGenre] = useState('All');
   const [greeting, setGreeting] = useState('');
 
-  // Dynamic human greeting based on local time
   useEffect(() => {
     const hour = new Date().getHours();
     if (hour < 12) setGreeting('Good morning');
@@ -90,52 +58,52 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
     else setGreeting('Good evening');
   }, []);
 
-  // Filter logic including the new /library route support
+  useEffect(() => {
+    setLoading(true);
+    api.getBooks().then(data => {
+      setBooks(data);
+      setLoading(false);
+    }).catch(err => {
+      console.error(err);
+      setLoading(false);
+    });
+  }, []);
+
   const filteredBooks = books.filter((book) => {
     if (activeGenre !== 'All' && book.genre !== activeGenre) return false;
-    if (filter === 'library' && !book.isFavorite) return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      return book.title.toLowerCase().includes(q) || book.author.toLowerCase().includes(q) || book.genre.toLowerCase().includes(q);
+    }
     return true;
   });
 
   return (
     <div className="space-y-8 pb-32 pt-4 max-w-[1600px] mx-auto p-4 md:p-8">
-      
-      {/* Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight mb-1">
-            {filter === 'library' ? 'Your Library' : searchQuery ? 'Search Results' : greeting}
+            {searchQuery ? 'Search Results' : greeting}
           </h1>
-          {!searchQuery && filter !== 'library' && (
-            <p className="text-sm text-[#b3b3b3]">
-              Find your next favorite audiobook.
-            </p>
+          {!searchQuery && (
+            <p className="text-sm text-[#b3b3b3]">Find your next favorite audiobook.</p>
           )}
         </div>
-
-        {/* Admin Action Button */}
         {user?.role === 'admin' && onNavigateAdmin && (
-          <button
-            onClick={onNavigateAdmin}
-            className="flex items-center gap-2 px-4 py-2 rounded-full bg-white text-black hover:scale-105 text-sm font-bold transition-transform active:scale-95 w-fit"
-          >
-            <Shield className="w-4 h-4" />
-            <span>Admin Dashboard</span>
+          <button onClick={onNavigateAdmin} className="flex items-center gap-2 px-4 py-2 rounded-full bg-white text-black hover:scale-105 text-sm font-bold transition-transform active:scale-95 w-fit">
+            <Shield className="w-4 h-4" /><span>Admin Dashboard</span>
           </button>
         )}
       </div>
 
-      {/* Genre Filters (Hide when in Library view or searching) */}
-      {!searchQuery && filter !== 'library' && (
+      {!searchQuery && (
         <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-hide snap-x">
           {GENRES.map((genre) => (
             <button
               key={genre}
               onClick={() => setActiveGenre(genre)}
               className={`whitespace-nowrap px-4 py-1.5 rounded-full text-[13px] font-medium transition-colors snap-start ${
-                activeGenre === genre
-                  ? 'bg-white text-black'
-                  : 'bg-[#282828] text-white hover:bg-[#3e3e3e]'
+                activeGenre === genre ? 'bg-white text-black' : 'bg-[#282828] text-white hover:bg-[#3e3e3e]'
               }`}
             >
               {genre}
@@ -144,7 +112,6 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
         </div>
       )}
 
-      {/* Search Results Header */}
       {searchQuery && (
         <div className="flex items-center justify-between bg-[#282828] px-4 py-3 rounded-lg">
           <div className="flex items-center gap-3">
@@ -152,26 +119,17 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
             <span className="text-sm text-white">Showing results for <span className="font-bold">"{searchQuery}"</span></span>
           </div>
           {onClearSearch && (
-            <button
-              onClick={onClearSearch}
-              className="p-1.5 text-[#b3b3b3] hover:text-white rounded-full hover:bg-[#3e3e3e] transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            <button onClick={onClearSearch} className="p-1.5 text-[#b3b3b3] hover:text-white rounded-full hover:bg-[#3e3e3e] transition-colors"><X className="w-4 h-4" /></button>
           )}
         </div>
       )}
 
-      {/* Book Grid */}
-      {filteredBooks.length > 0 ? (
+      {loading ? (
+        <div className="flex items-center justify-center py-24"><Loader2 className="w-10 h-10 text-[#facc15] animate-spin" /></div>
+      ) : filteredBooks.length > 0 ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5 sm:gap-6">
           {filteredBooks.map((book) => (
-            <BookCard 
-              key={book.id} 
-              book={book} 
-              // THIS IS THE MAGIC: Pushes the new URL when clicked!
-              onClick={() => navigate(`/book/${book.id}`)} 
-            />
+            <BookCard key={book.id} book={book} onClick={() => navigate(`/book/${book.id}`)} />
           ))}
         </div>
       ) : (
@@ -179,9 +137,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
           <Search className="w-12 h-12 text-[#4d4d4d] mb-4" />
           <h3 className="text-lg font-bold text-white mb-2">No audiobooks found</h3>
           <p className="text-sm text-[#b3b3b3] max-w-md">
-            {searchQuery
-              ? `We couldn't find anything matching "${searchQuery}". Please try adjusting your search terms.`
-              : `There are currently no audiobooks available.`}
+            {searchQuery ? `We couldn't find anything matching "${searchQuery}".` : `There are currently no audiobooks available in this genre.`}
           </p>
         </div>
       )}
