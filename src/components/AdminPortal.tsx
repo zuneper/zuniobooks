@@ -1,17 +1,21 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom'; // <-- ADDED FOR ROUTING
 import { Shield, PlusCircle, Upload, BookOpen, Music, Trash2, CheckCircle, AlertCircle, FolderPlus, Layers } from 'lucide-react';
 import { Book, Episode, User } from '../types';
 import { api } from '../lib/api';
 
 interface AdminPortalProps {
-  user: User | null;
-  refreshBooks: () => void;
-  preSelectedBookId?: string | null;
+  user?: User | null;
+  refreshBooks?: () => void;
 }
 
 const GENRES = ['Sci-Fi', 'Cosmos', 'Fantasy', 'Mystery', 'Thriller', 'Business', 'Self-Help', 'Fiction', 'Non-Fiction', 'Classics'];
 
-export const AdminPortal: React.FC<AdminPortalProps> = ({ user, refreshBooks, preSelectedBookId }) => {
+export const AdminPortal: React.FC<AdminPortalProps> = ({ user, refreshBooks }) => {
+  // ROUTER MAGIC: Extract the bookId if we clicked "Upload Chapter" from a specific Book Page
+  const [searchParams] = useSearchParams();
+  const preSelectedBookId = searchParams.get('bookId');
+
   const [activeTab, setActiveTab] = useState<'create_book' | 'upload_episode' | 'manage'>('create_book');
   const [books, setBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -25,7 +29,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ user, refreshBooks, pr
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverUrlInput, setCoverUrlInput] = useState('');
 
-  const [selectedBookId, setSelectedBookId] = useState(preSelectedBookId || '');
+  const [selectedBookId, setSelectedBookId] = useState('');
   const [episodeTitle, setEpisodeTitle] = useState('');
   const [episodeTrackNumber, setEpisodeTrackNumber] = useState('');
   const [episodeDurationInput, setEpisodeDurationInput] = useState('');
@@ -39,7 +43,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ user, refreshBooks, pr
     try {
       const data = await api.getBooks();
       setBooks(data);
-      if (data.length > 0 && !selectedBookId) setSelectedBookId(data[0].id);
+      if (data.length > 0 && !selectedBookId && !preSelectedBookId) setSelectedBookId(data[0].id);
     } catch {}
   };
 
@@ -68,7 +72,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ user, refreshBooks, pr
       const created = await api.createBook(formData);
       setStatusMessage({ type: 'success', msg: 'Audiobook created!' });
       setBookTitle(''); setBookAuthor(''); setBookNarrator(''); setBookDescription(''); setCoverFile(null); setCoverUrlInput('');
-      fetchCatalog(); refreshBooks(); setSelectedBookId(created.id); setActiveTab('upload_episode');
+      fetchCatalog(); if(refreshBooks) refreshBooks(); setSelectedBookId(created.id); setActiveTab('upload_episode');
     } catch (err: any) { setStatusMessage({ type: 'error', msg: err.message || 'Failed to create book' }); } 
     finally { setLoading(false); }
   };
@@ -89,7 +93,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ user, refreshBooks, pr
       await api.createEpisode(selectedBookId, formData);
       setStatusMessage({ type: 'success', msg: 'Chapter uploaded!' });
       setEpisodeTitle(''); setEpisodeTrackNumber(''); setAudioFile(null); setAudioUrlInput(''); setEpisodeDurationInput('');
-      fetchCatalog(); refreshBooks();
+      fetchCatalog(); if(refreshBooks) refreshBooks();
     } catch (err: any) { setStatusMessage({ type: 'error', msg: err.message || 'Failed to upload episode' }); } 
     finally { setLoading(false); }
   };
@@ -99,7 +103,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ user, refreshBooks, pr
     try {
       await api.deleteBook(bookId);
       setStatusMessage({ type: 'success', msg: 'Deleted.' });
-      fetchCatalog(); refreshBooks();
+      fetchCatalog(); if(refreshBooks) refreshBooks();
     } catch (err: any) { setStatusMessage({ type: 'error', msg: err.message || 'Failed to delete' }); }
   };
 
@@ -118,7 +122,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ user, refreshBooks, pr
     try {
       await api.updateEpisode(epId, { durationSeconds: newDuration });
       setEditingEpisodes((prev) => prev.map(e => e.id === epId ? { ...e, durationSeconds: newDuration } : e));
-      refreshBooks();
+      if(refreshBooks) refreshBooks();
     } catch {}
   };
 
@@ -126,7 +130,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ user, refreshBooks, pr
   const labelClass = "block text-xs font-bold text-[#b3b3b3] mb-1.5 uppercase tracking-wide";
 
   return (
-    <div className="space-y-8 pb-28 max-w-[1000px] mx-auto pt-4">
+    <div className="space-y-8 pb-28 max-w-[1000px] mx-auto pt-4 px-4 md:px-0">
       <div className="flex items-center justify-between pb-6 border-b border-[#282828]">
         <div>
           <h1 className="text-2xl font-bold text-white mb-1">Admin Portal</h1>
@@ -137,7 +141,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ user, refreshBooks, pr
         </div>
       </div>
 
-      <div className="flex items-center gap-4 border-b border-[#282828] pb-4">
+      <div className="flex items-center gap-4 border-b border-[#282828] pb-4 overflow-x-auto scrollbar-hide">
         {[
           { id: 'create_book', icon: FolderPlus, label: '1. New Book' },
           { id: 'upload_episode', icon: Music, label: '2. Upload Audio' },
@@ -146,7 +150,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ user, refreshBooks, pr
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all ${
+            className={`flex items-center whitespace-nowrap gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all ${
               activeTab === tab.id ? 'bg-white text-black' : 'bg-[#181818] text-[#b3b3b3] hover:text-white hover:bg-[#282828]'
             }`}
           >
@@ -247,15 +251,15 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ user, refreshBooks, pr
         <div className="space-y-4">
           {books.map(b => (
             <div key={b.id} className="p-4 rounded-md bg-[#181818] border border-[#282828]">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                  <img src={b.coverUrl} alt={b.title} className="w-12 h-12 rounded bg-[#282828] object-cover" />
+                  <img src={b.coverUrl} alt={b.title} className="w-12 h-12 rounded bg-[#282828] object-cover flex-shrink-0" />
                   <div>
-                    <h4 className="text-sm font-bold text-white">{b.title}</h4>
+                    <h4 className="text-sm font-bold text-white line-clamp-1">{b.title}</h4>
                     <p className="text-xs text-[#b3b3b3]">{b.author} • {b.episodesCount || 0} Chapters</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 self-end sm:self-auto">
                   <button onClick={() => handleManageEpisodes(b.id)} className="px-3 py-1.5 rounded-full bg-[#282828] text-white hover:bg-[#3e3e3e] text-xs font-bold transition-colors">Chapters</button>
                   <button onClick={() => handleDeleteBook(b.id)} className="p-1.5 text-[#b3b3b3] hover:text-red-400 transition-colors"><Trash2 className="w-4 h-4" /></button>
                 </div>
@@ -263,14 +267,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ user, refreshBooks, pr
               {editingBookId === b.id && (
                 <div className="mt-4 pt-4 border-t border-[#282828] space-y-2">
                   {editingEpisodes.map(ep => (
-                    <div key={ep.id} className="flex items-center justify-between p-2 rounded bg-[#282828]">
-                      <span className="text-xs font-bold text-white truncate max-w-[50%]">{ep.title}</span>
-                      <div className="flex items-center gap-2">
+                    <div key={ep.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded bg-[#282828] gap-3">
+                      <span className="text-xs font-bold text-white truncate max-w-full sm:max-w-[50%]">{ep.title}</span>
+                      <div className="flex items-center gap-2 self-end sm:self-auto">
                         <label className="text-[10px] text-[#b3b3b3] uppercase font-bold">Secs:</label>
                         <input 
                           type="number" defaultValue={ep.durationSeconds}
                           onBlur={e => { const val = parseInt(e.target.value, 10); if (!isNaN(val) && val !== ep.durationSeconds) handleUpdateDuration(ep.id, val); }}
-                          className="w-16 px-2 py-1 bg-[#181818] border border-[#3e3e3e] rounded text-xs text-white text-center focus:outline-none focus:border-white"
+                          className="w-20 px-2 py-1.5 bg-[#181818] border border-[#3e3e3e] rounded text-xs text-white text-center focus:outline-none focus:border-white"
                         />
                       </div>
                     </div>
