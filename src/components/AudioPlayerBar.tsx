@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom'; // <-- ADDED FOR SPOTIFY-STYLE NAVIGATION
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Play, Pause, Volume2, VolumeX, Volume1,
@@ -47,7 +47,7 @@ export const AudioPlayerBar: React.FC = () => {
     playbackRate, togglePlayPause, setVolume, setPlaybackRate, seek
   } = useAudio();
 
-  const navigate = useNavigate(); // <-- ADDED NAVIGATION HOOK
+  const navigate = useNavigate();
 
   const [isDragging, setIsDragging] = useState(false);
   const [dragProgress, setDragProgress] = useState(0);
@@ -112,6 +112,13 @@ export const AudioPlayerBar: React.FC = () => {
   if (!currentBook || !currentEpisode) return null;
 
   const handleToggleFavorite = async () => {
+    // CRITICAL FIX: Ensure users are logged in before allowing them to favorite from the player
+    const token = localStorage.getItem('zuniobooks_token');
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+
     const originalState = isFavorite;
     setIsFavorite(!isFavorite); 
     try {
@@ -219,13 +226,11 @@ export const AudioPlayerBar: React.FC = () => {
 
   return (
     <>
-      {/* DESKTOP PLAYER */}
       <motion.div 
         initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
         className="hidden md:flex fixed bottom-0 inset-x-0 z-50 bg-[#181818] border-t border-[#282828] h-[90px] items-center select-none"
       >
         <div className="flex items-center justify-between w-full px-6 max-w-[1600px] mx-auto h-full">
-          {/* Desktop Left */}
           <div className="flex items-center gap-3.5 w-[30%] min-w-[180px] pr-4">
             <img 
               src={currentBook.coverUrl} 
@@ -248,7 +253,6 @@ export const AudioPlayerBar: React.FC = () => {
             </button>
           </div>
 
-          {/* Desktop Center */}
           <div className="flex flex-col items-center justify-center w-[40%] max-w-[722px]">
             <div className="flex items-center gap-6 mb-2">
               <button onClick={skipBackward15} className="text-[#b3b3b3] hover:text-white active:scale-95"><RotateCcw className="w-4 h-4" /></button>
@@ -278,7 +282,6 @@ export const AudioPlayerBar: React.FC = () => {
             </div>
           </div>
 
-          {/* Desktop Right */}
           <div className="flex items-center justify-end w-[30%] min-w-[180px] gap-4">
             {renderSpeedMenu(desktopSpeedRef, 'right-0')}
             {renderSleepMenu(desktopSleepRef, 'right-0')}
@@ -297,7 +300,6 @@ export const AudioPlayerBar: React.FC = () => {
         </div>
       </motion.div>
 
-      {/* MOBILE MINI PLAYER */}
       {!isMobileExpanded && (
         <motion.div 
           initial={{ y: 100 }} animate={{ y: 0 }}
@@ -327,7 +329,6 @@ export const AudioPlayerBar: React.FC = () => {
         </motion.div>
       )}
 
-      {/* MOBILE FULLSCREEN PLAYER */}
       <AnimatePresence>
         {isMobileExpanded && (
           <motion.div
