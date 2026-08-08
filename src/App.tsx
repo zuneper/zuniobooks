@@ -85,7 +85,7 @@ const AppContent = ({ user, setUser, handleLogout, searchQuery, setSearchQuery }
               <BookDetailView user={user} onOpenAuth={() => navigate('/login')} />
             } />
             
-            {/* THE FIX: user={user} is now correctly passed to the AdminPortal! */}
+            {/* CRITICAL SECURITY LOCK: Prevents URL hijacking by standard users */}
             <Route path="/admin" element={user?.role === 'admin' ? <AdminPortal user={user} /> : <Navigate to="/home" />} />
           </Routes>
         </main>
@@ -122,6 +122,7 @@ export default function App() {
   const handleLogout = () => {
     api.logout();
     setUser(null);
+    window.location.href = "/home"; // Force refresh to home on logout
   };
 
   return (
