@@ -45,12 +45,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ user, isOpen, onClose }) => {
             <span>Library</span>
           </button>
 
-          {/* CRITICAL FIX: Restored Favorites Navigation */}
           <button onClick={() => { navigate('/favorites'); onClose(); }} className={navItemClass('/favorites')}>
             <Heart className="w-5 h-5" />
             <span>Favorites</span>
           </button>
 
+          {/* CRITICAL SECURITY LOCK: Hides Admin button from standard users */}
           {user?.role === 'admin' && (
             <div className="pt-6 mt-6 border-t border-[#282828]">
               <button onClick={() => { navigate('/admin'); onClose(); }} className={navItemClass('/admin')}>
