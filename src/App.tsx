@@ -36,17 +36,19 @@ const AppContent = ({ user, setUser, handleLogout, searchQuery, setSearchQuery }
       />
 
       <div className="flex-1 flex overflow-hidden relative">
-        <Sidebar 
-          user={user} 
-          isOpen={isSidebarOpen} 
-          onClose={() => setIsSidebarOpen(false)} 
-        />
+        {/* CRITICAL FIX: Sidebar only renders if the user is authenticated */}
+        {user && (
+          <Sidebar 
+            user={user} 
+            isOpen={isSidebarOpen} 
+            onClose={() => setIsSidebarOpen(false)} 
+          />
+        )}
 
         <main className="flex-1 overflow-y-auto pb-24" id="main-scroll-container">
           <Routes>
             <Route path="/" element={<Navigate to="/home" replace />} />
             
-            {/* CRITICAL FIX: Hide the catalog from guests! */}
             <Route path="/home" element={
               user ? (
                 <ExploreView 
@@ -61,6 +63,15 @@ const AppContent = ({ user, setUser, handleLogout, searchQuery, setSearchQuery }
             } />
             
             <Route path="/library" element={
+              <LibraryView 
+                user={user}
+                onOpenAuth={() => navigate('/login')}
+                onSelectBook={(book) => navigate(`/book/${book.id}`)}
+              />
+            } />
+
+            {/* CRITICAL FIX: Restored the Favorites route */}
+            <Route path="/favorites" element={
               <LibraryView 
                 user={user}
                 onOpenAuth={() => navigate('/login')}
@@ -87,7 +98,7 @@ const AppContent = ({ user, setUser, handleLogout, searchQuery, setSearchQuery }
           mode={location.pathname.replace('/', '') as 'login' | 'signup'}
           onClose={() => navigate(-1)} 
           onSuccess={(loggedInUser) => {
-            setUser(loggedInUser); // Update the UI immediately
+            setUser(loggedInUser); 
             navigate('/home');
           }} 
         />
