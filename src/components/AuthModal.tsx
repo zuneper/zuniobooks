@@ -18,7 +18,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, mode = 'login', on
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Auto-switch mode based on URL
   useEffect(() => {
     setIsLogin(mode === 'login');
   }, [mode]);
@@ -29,11 +28,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, mode = 'login', on
     setLoading(true);
     try {
       if (isLogin) {
-        const user = await api.login(username, password);
-        onSuccess(user);
+        const response = await api.login(username, password);
+        onSuccess(response.user); // Properly extract the user object from the response
       } else {
-        const user = await api.register(username, password);
-        onSuccess(user);
+        const response = await api.register(username, password);
+        onSuccess(response.user); // Properly extract the user object from the response
       }
       onClose();
     } catch (err: any) {
