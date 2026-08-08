@@ -14,14 +14,14 @@ interface AuthModalProps {
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, mode = 'login', onClose, onSuccess }) => {
   const [isLogin, setIsLogin] = useState(mode === 'login');
   const [username, setUsername] = useState('');
-  const [email, setEmail] = useState(''); // CRITICAL FIX: Added email state
+  const [email, setEmail] = useState(''); 
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     setIsLogin(mode === 'login');
-    setError(''); // Clear errors when switching modes
+    setError(''); 
   }, [mode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -31,12 +31,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, mode = 'login', on
     try {
       if (isLogin) {
         const response = await api.login(username, password);
-        onSuccess(response.user); // CRITICAL FIX: Extract user object to read admin role
+        onSuccess(response.user); 
       } else {
         const response = await api.register(username, email, password);
         onSuccess(response.user);
       }
-      onClose();
+      // CRITICAL FIX: Removed the onClose() call here. 
+      // onSuccess() already triggers a navigation event. Calling onClose() at the same time caused them to fight, trapping the modal on the screen.
     } catch (err: any) {
       setError(err.message || 'Authentication failed');
     } finally {
@@ -99,7 +100,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, mode = 'login', on
                 />
               </div>
 
-              {/* CRITICAL FIX: The missing email field for registration */}
               {!isLogin && (
                 <div>
                   <label className="block text-xs font-bold text-[#b3b3b3] mb-1.5 uppercase tracking-wide">
