@@ -14,12 +14,14 @@ interface AuthModalProps {
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, mode = 'login', onClose, onSuccess }) => {
   const [isLogin, setIsLogin] = useState(mode === 'login');
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState(''); // CRITICAL FIX: Added email state
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     setIsLogin(mode === 'login');
+    setError(''); // Clear errors when switching modes
   }, [mode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -29,10 +31,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, mode = 'login', on
     try {
       if (isLogin) {
         const response = await api.login(username, password);
-        onSuccess(response.user); // Properly extract the user object from the response
+        onSuccess(response.user); // CRITICAL FIX: Extract user object to read admin role
       } else {
-        const response = await api.register(username, password);
-        onSuccess(response.user); // Properly extract the user object from the response
+        const response = await api.register(username, email, password);
+        onSuccess(response.user);
       }
       onClose();
     } catch (err: any) {
@@ -85,7 +87,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, mode = 'login', on
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-[#b3b3b3] mb-1.5 uppercase tracking-wide">
-                  Username or Email
+                  {isLogin ? 'Username or Email' : 'Username'}
                 </label>
                 <input
                   type="text"
@@ -96,6 +98,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, mode = 'login', on
                   placeholder={isLogin ? 'Enter username or email' : 'Choose a username'}
                 />
               </div>
+
+              {/* CRITICAL FIX: The missing email field for registration */}
+              {!isLogin && (
+                <div>
+                  <label className="block text-xs font-bold text-[#b3b3b3] mb-1.5 uppercase tracking-wide">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full px-4 py-3 bg-[#282828] border border-transparent rounded-md text-white focus:outline-none focus:border-[#facc15] focus:bg-[#3e3e3e] transition-all"
+                    placeholder="Enter your email"
+                  />
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-bold text-[#b3b3b3] mb-1.5 uppercase tracking-wide">
                   Password
