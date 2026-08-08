@@ -1,192 +1,70 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Clock, Shield, Layers, Heart, X } from 'lucide-react';
-import { Book, User } from '../types';
+import { useNavigate } from 'react-router-dom';
+import { api } from '../lib/api';
+import { Book } from '../types';
+import { Play } from 'lucide-react';
 
-interface ExploreViewProps {
-  books: Book[];
-  searchQuery: string;
-  onClearSearch: () => void;
-  onSelectBook: (book: Book) => void;
-  user: User | null;
-  onOpenAuth: () => void;
-  onNavigateAdmin: () => void;
-  refreshBooks: () => void;
-}
+export const ExploreView: React.FC<{ searchQuery?: string, filter?: string }> = ({ searchQuery = '', filter = '' }) => {
+  const [books, setBooks] = useState<Book[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
 
-const GENRES = [
-  'All',
-  'Sci-Fi',
-  'Cosmos',
-  'Fantasy',
-  'Mystery',
-  'Thriller',
-  'Business',
-  'Self-Help',
-  'Fiction',
-  'Non-Fiction',
-  'Classics',
-];
-
-// Clean, Flat Design Book Card
-const BookCard: React.FC<{ book: Book; onClick: () => void }> = ({ book, onClick }) => {
-  return (
-    <div
-      onClick={onClick}
-      className="group cursor-pointer flex flex-col h-full bg-[#181818] hover:bg-[#282828] rounded-xl p-4 transition-all duration-300 shadow-sm"
-    >
-      {/* Cover Image */}
-      <div className="relative w-full aspect-square rounded-md overflow-hidden mb-4 bg-[#282828] shadow-md">
-        <img
-          src={book.coverUrl}
-          alt={book.title}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-in-out"
-          loading="lazy"
-        />
-        {book.isFavorite && (
-          <div className="absolute top-2 right-2 p-1.5 rounded-full bg-black/40 backdrop-blur-md">
-            <Heart className="w-4 h-4 text-[#facc15] fill-[#facc15]" />
-          </div>
-        )}
-      </div>
-      
-      {/* Text Details - Styled with relaxed leading to accommodate tall scripts like Burmese */}
-      <div className="flex-1 flex flex-col">
-        <h3 className="text-[15px] font-bold text-white leading-relaxed mb-1 line-clamp-2">
-          {book.title}
-        </h3>
-        <p className="text-[13px] text-[#b3b3b3] mb-3 line-clamp-1">{book.author}</p>
-        
-        <div className="mt-auto flex items-center justify-between text-[12px] text-[#b3b3b3] font-medium pt-2 border-t border-white/5">
-          <div className="flex items-center gap-1.5">
-            <Layers className="w-3.5 h-3.5" />
-            <span>{book.episodesCount || 0} Ch.</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Clock className="w-3.5 h-3.5" />
-            <span>{Math.floor((book.totalDurationSeconds || 0) / 60)}m</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export const ExploreView: React.FC<ExploreViewProps> = ({
-  books,
-  searchQuery,
-  onClearSearch,
-  onSelectBook,
-  user,
-  onOpenAuth,
-  onNavigateAdmin,
-}) => {
-  const [activeGenre, setActiveGenre] = useState('All');
-  const [greeting, setGreeting] = useState('');
-
-  // Dynamic human greeting based on local time
   useEffect(() => {
-    const hour = new Date().getHours();
-    if (hour < 12) setGreeting('Good morning');
-    else if (hour < 18) setGreeting('Good afternoon');
-    else setGreeting('Good evening');
-  }, []);
+    setIsLoading(true);
+    api.getBooks().then((allBooks) => {
+      let filtered = allBooks;
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        filtered = filtered.filter(b => b.title.toLowerCase().includes(q) || b.author.toLowerCase().includes(q));
+      }
+      if (filter === 'library') {
+        filtered = filtered.filter((b: any) => b.isFavorite); 
+      }
+      setBooks(filtered);
+      setIsLoading(false);
+    });
+  }, [searchQuery, filter]);
 
-  const filteredBooks = books.filter((book) => {
-    if (activeGenre !== 'All' && book.genre !== activeGenre) return false;
-    return true;
-  });
+  if (isLoading) {
+    return <div className="text-[#FFD700] text-center mt-20 text-xl animate-pulse">Loading Universe...</div>;
+  }
 
   return (
-    <div className="space-y-8 pb-32 pt-4 max-w-[1600px] mx-auto">
+    <div className="p-4 md:p-8">
+      <h2 className="text-2xl md:text-3xl font-bold text-white mb-6">
+        {filter === 'library' ? 'Your Library' : 'Explore'}
+      </h2>
       
-      {/* Header Section */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight mb-1">
-            {searchQuery ? 'Search Results' : greeting}
-          </h1>
-          {!searchQuery && (
-            <p className="text-sm text-[#b3b3b3]">
-              Find your next favorite audiobook.
-            </p>
-          )}
-        </div>
-
-        {/* Admin Action Button */}
-        {user?.role === 'admin' && (
-          <button
-            onClick={onNavigateAdmin}
-            className="flex items-center gap-2 px-4 py-2 rounded-full bg-white text-black hover:scale-105 text-sm font-bold transition-transform active:scale-95 w-fit"
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
+        {books.map((book) => (
+          <div 
+            key={book.id}
+            onClick={() => navigate(`/book/${book.id}`)}
+            className="group relative bg-[#1A1A1A] rounded-xl overflow-hidden cursor-pointer border border-transparent hover:border-[#FFD700] transition-all duration-300 shadow-lg hover:shadow-[#FFD700]/20"
           >
-            <Shield className="w-4 h-4" />
-            <span>Admin Dashboard</span>
-          </button>
-        )}
-      </div>
-
-      {/* Genre Filters */}
-      {!searchQuery && (
-        <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-hide snap-x">
-          {GENRES.map((genre) => (
-            <button
-              key={genre}
-              onClick={() => setActiveGenre(genre)}
-              className={`whitespace-nowrap px-4 py-1.5 rounded-full text-[13px] font-medium transition-colors snap-start ${
-                activeGenre === genre
-                  ? 'bg-white text-black'
-                  : 'bg-[#282828] text-white hover:bg-[#3e3e3e]'
-              }`}
-            >
-              {genre}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Search Results Header */}
-      {searchQuery && (
-        <div className="flex items-center justify-between bg-[#282828] px-4 py-3 rounded-lg">
-          <div className="flex items-center gap-3">
-            <Search className="w-5 h-5 text-[#b3b3b3]" />
-            <span className="text-sm text-white">Showing results for <span className="font-bold">"{searchQuery}"</span></span>
+            <div className="aspect-square overflow-hidden relative">
+              <img 
+                src={book.coverUrl} 
+                alt={book.title} 
+                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+              />
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                <div className="bg-[#FFD700] p-3 rounded-full text-black transform scale-0 group-hover:scale-100 transition-transform duration-300">
+                  <Play fill="currentColor" />
+                </div>
+              </div>
+            </div>
+            <div className="p-4">
+              <h3 className="text-white font-semibold truncate text-sm md:text-base">{book.title}</h3>
+              <p className="text-gray-400 text-xs md:text-sm truncate mt-1">{book.author}</p>
+            </div>
           </div>
-          <button
-            onClick={onClearSearch}
-            className="p-1.5 text-[#b3b3b3] hover:text-white rounded-full hover:bg-[#3e3e3e] transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
-
-      {/* Book Grid */}
-      {filteredBooks.length > 0 ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5 sm:gap-6">
-          {filteredBooks.map((book) => (
-            <BookCard 
-              key={book.id} 
-              book={book} 
-              onClick={() => onSelectBook(book)} 
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center py-24 px-4 text-center">
-          <Search className="w-12 h-12 text-[#4d4d4d] mb-4" />
-          <h3 className="text-lg font-bold text-white mb-2">No audiobooks found</h3>
-          <p className="text-sm text-[#b3b3b3] max-w-md">
-            {searchQuery
-              ? `We couldn't find anything matching "${searchQuery}". Please try adjusting your search terms.`
-              : `There are currently no audiobooks available in the ${activeGenre} genre.`}
-          </p>
-          {searchQuery && (
-            <button
-              onClick={onClearSearch}
-              className="mt-6 px-6 py-2.5 rounded-full bg-white text-black text-sm font-bold hover:scale-105 transition-transform active:scale-95"
-            >
-              Clear Search
-            </button>
-          )}
+        ))}
+      </div>
+      
+      {books.length === 0 && (
+        <div className="text-gray-500 text-center mt-20">
+          No audiobooks found matching your criteria.
         </div>
       )}
     </div>
