@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Search, User as UserIcon, LogOut, Menu, X, Library, Shield } from 'lucide-react';
 import { User } from '../types';
 
@@ -23,10 +24,12 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleMobileMenu,
   onNavigateAdmin,
   onLoginClick,
-  onSignupClick,
 }) => {
   const [showMobileSearch, setShowMobileSearch] = useState(false);
   const [headerOpacity, setHeaderOpacity] = useState(0);
+  
+  const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const scrollContainer = document.getElementById('main-scroll-container');
@@ -41,6 +44,14 @@ export const Header: React.FC<HeaderProps> = ({
     scrollContainer.addEventListener('scroll', handleScroll);
     return () => scrollContainer.removeEventListener('scroll', handleScroll);
   }, []);
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+    // UX FIX: If they search from a book page or admin portal, snap them to the home page!
+    if (e.target.value && location.pathname !== '/home') {
+      navigate('/home');
+    }
+  };
 
   return (
     <header 
@@ -69,14 +80,14 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Search */}
+        {/* Desktop Search */}
         {user && (
           <div className="hidden sm:flex relative flex-1 max-w-sm mx-4 group">
             <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${searchQuery ? 'text-white' : 'text-[#b3b3b3] group-hover:text-white'}`} />
             <input
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={handleSearchChange}
               placeholder="What do you want to listen to?"
               className="w-full pl-10 pr-10 py-2.5 text-sm text-white bg-[#282828] hover:bg-[#3e3e3e] focus:bg-[#3e3e3e] border border-transparent focus:border-white rounded-full focus:outline-none transition-all placeholder-[#a7a7a7]"
             />
@@ -139,7 +150,7 @@ export const Header: React.FC<HeaderProps> = ({
             type="text"
             autoFocus
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={handleSearchChange}
             placeholder="Search audiobooks..."
             className="w-full pl-10 pr-4 py-3 text-sm text-white bg-[#282828] rounded-md focus:outline-none focus:bg-[#3e3e3e] transition-colors"
           />
