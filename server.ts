@@ -7,6 +7,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { createServer as createViteServer } from 'vite';
 import { initDatabase, dbService, UserRecord } from './src/server/db.js';
+import { loadDB, saveDB } from './src/server/db.js'; // Needed for the forceful upgrade
 
 const JWT_SECRET = process.env.JWT_SECRET || 'zuniobooks_galaxy_secret_key_2026';
 const PORT = 3000;
@@ -69,6 +70,16 @@ function requireAdmin(req: AuthRequest, res: Response, next: NextFunction) {
 
 async function startServer() {
   await initDatabase();
+  
+  // CRITICAL FIX: Forcefully upgrade zune19 to Admin if registered manually as a standard user
+  const db = require('./src/server/db.js').loadDB();
+  const adminIndex = db.users.findIndex((u: any) => u.username.toLowerCase() === 'zune19');
+  if (adminIndex !== -1 && db.users[adminIndex].role !== 'admin') {
+    db.users[adminIndex].role = 'admin';
+    require('./src/server/db.js').saveDB(db);
+    console.log('✅ FORCE UPGRADE: zune19 has been granted Admin privileges.');
+  }
+
   const app = express();
 
   app.use(cors());
@@ -113,7 +124,6 @@ async function startServer() {
     }
   });
 
-  // API Routes
   app.get('/api/auth/check-user', (req: Request, res: Response) => {
     const identifier = ((req.query.identifier as string) || '').trim().toLowerCase();
     if (!identifier) return res.json({ exists: false });
@@ -222,7 +232,6 @@ async function startServer() {
     const book = dbService.getBookById(req.params.id);
     if (!book) return res.status(404).json({ error: 'Book not found' });
 
-    // SYSTEM FIX: Physically delete the files to prevent storage leaks
     if (book.coverUrl.startsWith('/uploads/')) {
       const coverPath = path.join(process.cwd(), book.coverUrl);
       if (fs.existsSync(coverPath)) fs.unlinkSync(coverPath);
@@ -268,7 +277,6 @@ async function startServer() {
     const episode = dbService.getEpisodeById(req.params.id);
     if (!episode) return res.status(404).json({ error: 'Episode not found' });
 
-    // SYSTEM FIX: Physically delete audio file
     if (episode.audioUrl.startsWith('/uploads/')) {
       const audioPath = path.join(process.cwd(), episode.audioUrl);
       if (fs.existsSync(audioPath)) fs.unlinkSync(audioPath);
@@ -301,7 +309,6 @@ async function startServer() {
     res.json(prog);
   });
 
-  // SYSTEM FIX: Explicitly catch 404s for API routes so they don't return HTML and crash frontend decoders
   app.all('/api/*', (req, res) => {
     res.status(404).json({ error: 'API endpoint not found' });
   });
