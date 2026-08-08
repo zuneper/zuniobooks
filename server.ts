@@ -7,10 +7,11 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { createServer as createViteServer } from 'vite';
 import { initDatabase, dbService, UserRecord } from './src/server/db.js';
-import { loadDB, saveDB } from './src/server/db.js'; // Needed for the forceful upgrade
 
 const JWT_SECRET = process.env.JWT_SECRET || 'zuniobooks_galaxy_secret_key_2026';
-const PORT = 3000;
+
+// THE FIX: Listen to the environment port assigned by your host, fallback to 3000 locally
+const PORT = process.env.PORT || 3000;
 
 const UPLOADS_DIR = process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads');
 const COVERS_DIR = path.join(UPLOADS_DIR, 'covers');
@@ -71,7 +72,6 @@ function requireAdmin(req: AuthRequest, res: Response, next: NextFunction) {
 async function startServer() {
   await initDatabase();
   
-  // CRITICAL FIX: Forcefully upgrade zune19 to Admin if registered manually as a standard user
   const db = require('./src/server/db.js').loadDB();
   const adminIndex = db.users.findIndex((u: any) => u.username.toLowerCase() === 'zune19');
   if (adminIndex !== -1 && db.users[adminIndex].role !== 'admin') {
