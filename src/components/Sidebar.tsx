@@ -1,22 +1,23 @@
 import React from 'react';
-import { Home, Bookmark, Heart, Shield, X } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Home, Bookmark, Shield, X } from 'lucide-react';
 import { User } from '../types';
 
 interface SidebarProps {
-  activeView: string;
-  setActiveView: (view: string) => void;
   user: User | null;
   isOpen: boolean;
   onClose: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({
-  activeView,
-  setActiveView,
-  user,
-  isOpen,
-  onClose,
-}) => {
+export const Sidebar: React.FC<SidebarProps> = ({ user, isOpen, onClose }) => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const activeView = location.pathname;
+
+  const navItemClass = (path: string) => `w-full flex items-center gap-4 px-4 py-3 rounded-md text-sm font-bold transition-colors ${
+    activeView.startsWith(path) ? 'bg-[#282828] text-white' : 'text-[#b3b3b3] hover:text-white hover:bg-[#181818]'
+  }`;
+
   return (
     <>
       {isOpen && <div className="fixed inset-0 bg-black/70 z-40 md:hidden" onClick={onClose} />}
@@ -35,42 +36,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         <nav className="space-y-2">
           <button
-            onClick={() => { setActiveView('explore'); onClose(); }}
-            className={`w-full flex items-center gap-4 px-4 py-3 rounded-md text-sm font-bold transition-colors ${
-              activeView === 'explore' ? 'bg-[#282828] text-white' : 'text-[#b3b3b3] hover:text-white hover:bg-[#181818]'
-            }`}
+            onClick={() => { navigate('/home'); onClose(); }}
+            className={navItemClass('/home')}
           >
             <Home className="w-5 h-5" />
             <span>Home</span>
           </button>
 
           <button
-            onClick={() => { setActiveView('library'); onClose(); }}
-            className={`w-full flex items-center gap-4 px-4 py-3 rounded-md text-sm font-bold transition-colors ${
-              activeView === 'library' ? 'bg-[#282828] text-white' : 'text-[#b3b3b3] hover:text-white hover:bg-[#181818]'
-            }`}
+            onClick={() => { navigate('/library'); onClose(); }}
+            className={navItemClass('/library')}
           >
             <Bookmark className="w-5 h-5" />
             <span>Library</span>
           </button>
 
-          <button
-            onClick={() => { setActiveView('favorites'); onClose(); }}
-            className={`w-full flex items-center gap-4 px-4 py-3 rounded-md text-sm font-bold transition-colors ${
-              activeView === 'favorites' ? 'bg-[#282828] text-white' : 'text-[#b3b3b3] hover:text-white hover:bg-[#181818]'
-            }`}
-          >
-            <Heart className="w-5 h-5" />
-            <span>Favorites</span>
-          </button>
-
           {user?.role === 'admin' && (
             <div className="pt-6 mt-6 border-t border-[#282828]">
               <button
-                onClick={() => { setActiveView('admin'); onClose(); }}
-                className={`w-full flex items-center gap-4 px-4 py-3 rounded-md text-sm font-bold transition-colors ${
-                  activeView === 'admin' ? 'bg-[#282828] text-white' : 'text-[#b3b3b3] hover:text-white hover:bg-[#181818]'
-                }`}
+                onClick={() => { navigate('/admin'); onClose(); }}
+                className={navItemClass('/admin')}
               >
                 <Shield className="w-5 h-5" />
                 <span>Admin Portal</span>
