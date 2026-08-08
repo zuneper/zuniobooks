@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Library, AlertCircle } from 'lucide-react';
 import { api } from '../lib/api';
@@ -6,16 +6,22 @@ import { User } from '../types';
 
 interface AuthModalProps {
   isOpen: boolean;
+  mode?: 'login' | 'signup';
   onClose: () => void;
   onSuccess: (user: User) => void;
 }
 
-export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => {
-  const [isLogin, setIsLogin] = useState(true);
+export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, mode = 'login', onClose, onSuccess }) => {
+  const [isLogin, setIsLogin] = useState(mode === 'login');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Auto-switch mode based on URL
+  useEffect(() => {
+    setIsLogin(mode === 'login');
+  }, [mode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,7 +86,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-[#b3b3b3] mb-1.5 uppercase tracking-wide">
-                  Username
+                  Username or Email
                 </label>
                 <input
                   type="text"
@@ -88,7 +94,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="w-full px-4 py-3 bg-[#282828] border border-transparent rounded-md text-white focus:outline-none focus:border-[#facc15] focus:bg-[#3e3e3e] transition-all"
-                  placeholder="Enter your username"
+                  placeholder={isLogin ? 'Enter username or email' : 'Choose a username'}
                 />
               </div>
               <div>
@@ -118,6 +124,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
               <p className="text-[#b3b3b3] text-sm">
                 {isLogin ? "Don't have an account?" : "Already have an account?"}{' '}
                 <button
+                  type="button"
                   onClick={() => {
                     setIsLogin(!isLogin);
                     setError('');
